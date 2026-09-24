@@ -117,6 +117,36 @@ Run the copy again after bumping the package.
 
 Comments anchor to the element under the click plus an offset inside it, so they follow the layout through responsive reflow. If the element is hidden at the current width, the row says so and the pin hides with it.
 
+## Single-page apps and catch-all rewrites
+
+Tack follows history-based routers (React Router, Vue Router, and the like). When the path changes without a reload, the drawer re-keys to the new path so each screen keeps its own thread. Pins re-anchor when the framework swaps the DOM.
+
+If your `netlify.toml` has a catch-all rewrite for the app, put a rule for Tack ahead of it and drop the custom path from the function file, so the API is reached through Netlify's default function path:
+
+```toml
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/tack/*"
+  to = "/.netlify/functions/tack/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+```
+
+```js
+// netlify/functions/tack.mjs
+import handler from "verb-tack/function";
+export default handler;
+```
+
+If the app builds from a subfolder (`base = "site"` in netlify.toml), the functions directory and the package install live in that subfolder too.
+
 ## Admin
 
 Anyone can comment, reply, resolve, and reopen. Only the author of a comment, identified by a random token in their browser, can delete it. The admin key overrides that.

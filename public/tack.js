@@ -690,6 +690,36 @@
     }
   });
 
+  /* ---------- single-page apps ---------- */
+  /* History-based routers change the URL without a reload. Re-key the
+     comments to the new path so each screen keeps its own thread. A
+     data-page override on the script tag pins the key instead. */
+  var pageLocked = !!ds.page;
+  function onRouteChange() {
+    if (pageLocked) return;
+    var next = normalizePage(location.pathname);
+    if (next === PAGE) return;
+    PAGE = next;
+    $("#dPage").textContent = PAGE;
+    $("#dPage").title = "Comments are keyed to " + PAGE;
+    state.comments = []; state.pending = null; state.activeId = null; state.loading = true;
+    setPlacing(false);
+    renderAll();
+    load(true);
+  }
+  ["pushState", "replaceState"].forEach(function (k) {
+    var orig = history[k];
+    if (typeof orig !== "function") return;
+    history[k] = function () { var r = orig.apply(this, arguments); setTimeout(onRouteChange, 0); return r; };
+  });
+  window.addEventListener("popstate", function () { setTimeout(onRouteChange, 0); });
+  // Frameworks swap DOM without resizing the body; re-anchor pins when they do.
+  if (window.MutationObserver) {
+    new MutationObserver(function (muts) {
+      for (var i = 0; i < muts.length; i++) if (!host.contains(muts[i].target)) { schedule(); return; }
+    }).observe(document.body, { childList: true, subtree: true });
+  }
+
   /* ---------- polling ---------- */
   setInterval(function () {
     if (state.open && document.visibilityState === "visible" && !state.pending) load(true);

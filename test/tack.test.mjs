@@ -183,3 +183,16 @@ test("unknown route and bad method", async () => {
   assert.equal((await call("GET", "/api/tack/nope")).status, 404);
   assert.equal((await call("PUT", "/api/tack/comments?page=/x")).status, 405);
 });
+
+test("routes work behind a rewrite to /.netlify/functions/tack", async () => {
+  __reset();
+  let res = await call("GET", "/.netlify/functions/tack/health");
+  assert.equal(res.status, 200);
+  res = await call("POST", "/.netlify/functions/tack/comments", { body: { page: "/app/library", anchor, author: "A", text: "spa" }, token: "t" });
+  assert.equal(res.status, 201);
+  const c = await json(res);
+  res = await call("PATCH", "/.netlify/functions/tack/comments/" + c.id, { body: { page: "/app/library", resolved: true }, token: "t" });
+  assert.equal((await json(res)).resolved, true);
+  res = await call("GET", "/api/tack/comments?page=/app/library");
+  assert.equal((await json(res)).length, 1);
+});

@@ -3,7 +3,8 @@
    Netlify Function (v2) backing the Tack comments overlay.
    Storage: Netlify Blobs, store "tack", one blob per comment.
 
-   Routes (all under /api/tack):
+   Routes (under /api/tack by default; the handler matches on the trailing
+   segments, so it also works behind a rewrite to /.netlify/functions/tack/*):
      GET    /comments?page=/path          list comments for a page
      POST   /comments                     create a comment
      PATCH  /comments/:id                 reply · resolve/reopen · edit text
@@ -39,8 +40,11 @@ export default async function handler(req, context) {
   if (req.method === "OPTIONS") return cors(new Response(null, { status: 204 }), allowed);
   if (origin && !allowed) return json({ error: "Origin not allowed" }, 403);
 
-  const parts = url.pathname.replace(/^\/api\/tack\/?/, "").split("/").filter(Boolean);
-  const [resource, id] = parts;
+  // Route on the trailing segments so the function works at /api/tack/*,
+  // at /.netlify/functions/tack/* behind a rewrite, or any other prefix.
+  const m = url.pathname.match(/\/(comments|export|health)(?:\/([^/]+))?\/?$/);
+  const resource = m ? m[1] : null;
+  const id = m ? m[2] : undefined;
   const admin = isAdmin(req);
 
   try {
