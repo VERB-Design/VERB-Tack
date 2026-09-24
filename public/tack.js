@@ -73,16 +73,24 @@
   function pluralize(n, word) { return n + " " + word + (n === 1 ? "" : "s"); }
 
   /* ---------- API ---------- */
-  function api(path, opts) {
+  /* Every call gets a timeout and one automatic retry, so a stalled
+     connection reads as a short delay instead of a failure. */
+  var API_TIMEOUT = 12000;
+  function api(path, opts, attempt) {
     opts = opts || {};
+    attempt = attempt || 1;
     var headers = { "X-Tack-Token": token };
     if (opts.body) headers["Content-Type"] = "application/json";
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = ctrl && setTimeout(function () { ctrl.abort(); }, API_TIMEOUT);
     return fetch(API + path, {
       method: opts.method || "GET",
       headers: headers,
       body: opts.body ? JSON.stringify(opts.body) : undefined,
-      credentials: "same-origin"
+      credentials: "same-origin",
+      signal: ctrl ? ctrl.signal : undefined
     }).then(function (r) {
+      clearTimeout(timer);
       if (r.status === 204) return null;
       return r.text().then(function (t) {
         var d = null;
@@ -90,6 +98,13 @@
         if (!r.ok) throw new Error((d && d.error) || ("Tack server returned " + r.status));
         return d;
       });
+    }).catch(function (err) {
+      clearTimeout(timer);
+      var transient = err.name === "AbortError" || err.name === "TypeError" || /returned 5\d\d/.test(err.message);
+      if (transient && attempt < 2) return api(path, opts, attempt + 1);
+      if (err.name === "AbortError") throw new Error("The Tack server did not answer in time.");
+      if (err.name === "TypeError") throw new Error("Could not reach the Tack server.");
+      throw err;
     });
   }
   function pageQ() { return "?page=" + encodeURIComponent(PAGE); }
@@ -184,7 +199,9 @@
     ".btn.primary[aria-pressed=true]:before{background:#000}",
     ".btn.sm{padding:7px 12px;font-size:11px}",
     ".btn:disabled{opacity:.6;cursor:default}",
-    ".d-notice{padding:10px 16px;font-size:12.5px;background:rgba(236,0,140,.12);color:#fff;border-bottom:1px solid rgba(236,0,140,.4)}",
+    ".d-notice{padding:10px 16px;font-size:12.5px;background:rgba(236,0,140,.12);color:#fff;border-bottom:1px solid rgba(236,0,140,.4);display:flex;align-items:center;gap:12px}",
+    ".d-notice .retry{margin-left:auto;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;border:1px solid var(--line2);padding:4px 10px;white-space:nowrap}",
+    ".d-notice .retry:hover{border-color:#fff}",
     ".d-list{flex:1;overflow-y:auto;padding:8px}",
     ".d-foot{border-top:1px solid var(--line);padding:10px 12px;display:flex;align-items:center;gap:10px;background:#000}",
     ".d-foot .page{flex:1;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.02em}",
@@ -511,7 +528,10 @@
     });
     var notice = $("#dNotice");
     notice.hidden = !state.error;
-    notice.textContent = state.error ? state.error + " Comments will retry when you reopen the drawer." : "";
+    notice.innerHTML = state.error ? esc(state.error) + ' <button class="retry" id="retryBtn">Retry</button>' : "";
+    if (state.error) notice.querySelector("#retryBtn").addEventListener("click", function () {
+      state.loading = true; state.error = null; renderAll(); load();
+    });
 
     listBox.innerHTML = "";
 
