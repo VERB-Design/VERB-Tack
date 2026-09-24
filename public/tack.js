@@ -10,6 +10,9 @@
      data-page="/custom/key"   override the page identity (default: pathname)
      data-open="true"          start with the drawer open
 
+   On screens wider than 640px the open drawer docks and pushes the page
+   left by 360px so nothing is hidden behind it. On phones it overlays.
+
    Comments are stored server-side through the Tack function; nothing
    here is a secret. Reviewers pick a display name once. A random token
    in localStorage lets them delete their own comments and nothing else.
@@ -128,7 +131,6 @@
     ".ui{--bg:#121212;--bg2:#1C1C1C;--bg3:#262626;--line:rgba(255,255,255,.14);--line2:rgba(255,255,255,.28);--text:#FFFFFF;--muted:rgba(255,255,255,.62);--teal:#0083A8;--teal2:#0FA0C9;--pink:#EC008C;",
     "  font-family:'Outfit',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5;color:var(--text);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}",
     ".caps{text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-size:11.5px}",
-    ".wordmark{height:12px;width:auto;fill:currentColor;display:block;flex:none}",
 
     /* capture layer */
     ".capture{position:fixed;inset:0;z-index:5;display:none;cursor:crosshair}",
@@ -139,8 +141,6 @@
     /* pill */
     ".pill{position:fixed;bottom:20px;right:20px;z-index:20;display:flex;align-items:center;gap:10px;background:#000;color:#fff;border:1px solid var(--line2);padding:10px 16px 10px 14px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-size:12px;box-shadow:0 12px 32px rgba(0,0,0,.35);transition:border-color .15s,transform .15s}",
     ".pill:hover{border-color:#fff;transform:translateY(-1px)}",
-    ".pill .wordmark{height:11px;opacity:.9}",
-    ".pill .sep{width:1px;height:14px;background:var(--line2)}",
     ".pill .cnt{font-size:11px;background:#fff;color:#000;padding:1px 7px;min-width:20px;text-align:center;letter-spacing:0}",
     ".pill .cnt.hot{background:var(--teal);color:#fff}",
 
@@ -157,11 +157,10 @@
     /* drawer */
     ".drawer{position:fixed;top:0;right:0;bottom:0;width:360px;max-width:100vw;z-index:25;background:var(--bg);color:var(--text);border-left:1px solid var(--line);box-shadow:-24px 0 60px rgba(0,0,0,.35);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .22s cubic-bezier(.2,.8,.2,1);visibility:hidden}",
     ".drawer.open{transform:none;visibility:visible}",
+    ".drawer.docked{box-shadow:none}",
     ".drawer.open.peek{transform:translateX(calc(100% - 44px))}",
     ".d-head{padding:16px 16px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;background:#000}",
     ".d-head .logo{display:flex;align-items:center;gap:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:600;font-size:12px}",
-    ".d-head .logo .wordmark{height:13px}",
-    ".d-head .logo .sep{width:1px;height:14px;background:var(--line2)}",
     ".d-head .count{font-size:11px;color:var(--muted);flex:1;text-align:right;padding-right:4px;letter-spacing:.02em}",
     ".d-head .x{font-size:22px;line-height:1;color:var(--muted);padding:0 8px}",
     ".d-head .x:hover{color:#fff}",
@@ -249,7 +248,7 @@
     '  <div id="pins"></div>' +
     '  <aside class="drawer" id="drawer" aria-label="Tack comments">' +
     '    <header class="d-head">' +
-    '      <span class="logo"><svg class="wordmark" viewBox="0 0 90 30" aria-hidden="true"><path d="M24.857 0h-1.68l-9.1 22.232L5 0H0l6.25 14.99L12.52 30h3.013l6.311-15.01 2.234-5.32L28.135 0h-3.278zM29.693 14.99V30h16.619v-4.106H34.119V16.89H45.86v-4.126H34.119v-8.72h12.193V0h-16.62v14.99zM67.07 24.78l-4.877-6.351c2.213-.607 3.893-1.861 5.02-3.44a9.077 9.077 0 001.701-5.3 9.507 9.507 0 00-1.557-5.259c-.062-.1-.144-.202-.205-.303-.02-.02-.02-.04-.02-.04-.021-.041-.062-.082-.103-.122a9.013 9.013 0 00-1.762-1.76 8.989 8.989 0 00-1.763-1.052C62.46.668 61.086.283 58.771.101c-.8-.06-1.701-.08-2.726-.08H48.32V30h4.365V4.167h3.955c.84 0 1.475.02 2.028.081 1.23.101 2.152.364 3.156.89.02.02.062.04.082.04.656.345 1.25.951 1.7 1.72.472.81.718 1.74.718 2.63 0 1.639-.82 3.358-2.193 4.289a5.618 5.618 0 01-1.7.768 8.043 8.043 0 01-1.005.223c-.061 0-.102.02-.163.02-1.025.121-2.951.142-5 .142l9.118 11.915.902 1.173L65.78 30h5.307l-3.114-4.046-.902-1.173z"/><path d="M90 21.403c0-2.124-.758-3.601-2.07-4.815a7.504 7.504 0 00-1.229-1.032 8.494 8.494 0 00-1.762-.91c.143-.121.328-.263.512-.405.39-.323.84-.728 1.27-1.234.82-.99 1.558-2.993 1.558-4.996 0-.668-.123-3.035-1.824-5.017C85.062 1.355 82.623 0 78.32 0H65.39c.368.223.696.445 1.024.708.8.607 1.517 1.315 2.131 2.124.041.04.082.101.103.142.02.02.04.06.061.08.082.102.144.223.226.324.143.223.287.425.41.668h10.04c2.419 0 4.386 1.942 4.386 4.329 0 2.387-1.967 4.329-4.386 4.329H70.8a11.256 11.256 0 01-1.72 3.6 5.917 5.917 0 01-.534.668h12.46c.532 0 1.044.101 1.516.263a4.436 4.436 0 012.992 4.188c0 2.448-2.009 4.45-4.509 4.45H70.35l1.926 2.529 1.23 1.618h6.146c2.767-.04 4.591-.364 6.825-1.598 2.13-1.355 3.483-3.904 3.483-6.675v-.162c.02-.061.041-.122.041-.182z"/></svg><span class="sep"></span>Tack</span>' +
+    '      <span class="logo">Tack</span>' +
     '      <span class="count" id="dCount"></span>' +
     '      <button class="x" id="dClose" aria-label="Hide comments" title="Hide comments (Shift+C)">&times;</button>' +
     '    </header>' +
@@ -268,7 +267,7 @@
     '      <button class="btn sm" id="copyBtn">Copy summary</button>' +
     '    </footer>' +
     '  </aside>' +
-    '  <button class="pill" id="pill" aria-expanded="false" title="Show comments (Shift+C)"><svg class="wordmark" viewBox="0 0 90 30" aria-hidden="true"><path d="M24.857 0h-1.68l-9.1 22.232L5 0H0l6.25 14.99L12.52 30h3.013l6.311-15.01 2.234-5.32L28.135 0h-3.278zM29.693 14.99V30h16.619v-4.106H34.119V16.89H45.86v-4.126H34.119v-8.72h12.193V0h-16.62v14.99zM67.07 24.78l-4.877-6.351c2.213-.607 3.893-1.861 5.02-3.44a9.077 9.077 0 001.701-5.3 9.507 9.507 0 00-1.557-5.259c-.062-.1-.144-.202-.205-.303-.02-.02-.02-.04-.02-.04-.021-.041-.062-.082-.103-.122a9.013 9.013 0 00-1.762-1.76 8.989 8.989 0 00-1.763-1.052C62.46.668 61.086.283 58.771.101c-.8-.06-1.701-.08-2.726-.08H48.32V30h4.365V4.167h3.955c.84 0 1.475.02 2.028.081 1.23.101 2.152.364 3.156.89.02.02.062.04.082.04.656.345 1.25.951 1.7 1.72.472.81.718 1.74.718 2.63 0 1.639-.82 3.358-2.193 4.289a5.618 5.618 0 01-1.7.768 8.043 8.043 0 01-1.005.223c-.061 0-.102.02-.163.02-1.025.121-2.951.142-5 .142l9.118 11.915.902 1.173L65.78 30h5.307l-3.114-4.046-.902-1.173z"/><path d="M90 21.403c0-2.124-.758-3.601-2.07-4.815a7.504 7.504 0 00-1.229-1.032 8.494 8.494 0 00-1.762-.91c.143-.121.328-.263.512-.405.39-.323.84-.728 1.27-1.234.82-.99 1.558-2.993 1.558-4.996 0-.668-.123-3.035-1.824-5.017C85.062 1.355 82.623 0 78.32 0H65.39c.368.223.696.445 1.024.708.8.607 1.517 1.315 2.131 2.124.041.04.082.101.103.142.02.02.04.06.061.08.082.102.144.223.226.324.143.223.287.425.41.668h10.04c2.419 0 4.386 1.942 4.386 4.329 0 2.387-1.967 4.329-4.386 4.329H70.8a11.256 11.256 0 01-1.72 3.6 5.917 5.917 0 01-.534.668h12.46c.532 0 1.044.101 1.516.263a4.436 4.436 0 012.992 4.188c0 2.448-2.009 4.45-4.509 4.45H70.35l1.926 2.529 1.23 1.618h6.146c2.767-.04 4.591-.364 6.825-1.598 2.13-1.355 3.483-3.904 3.483-6.675v-.162c.02-.061.041-.122.041-.182z"/></svg><span class="sep"></span>Tack <span class="cnt" id="pillCnt">0</span></button>' +
+    '  <button class="pill" id="pill" aria-expanded="false" title="Show comments (Shift+C)">Tack <span class="cnt" id="pillCnt">0</span></button>' +
     '  <div class="toast" id="toast" role="status"></div>' +
     '</div>';
 
@@ -381,12 +380,34 @@
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
 
   /* ---------- drawer ---------- */
+  /* Above the phone breakpoint the drawer docks: the page is pushed left by
+     the drawer's width so nothing sits behind it and every element stays
+     clickable. Fixed-position elements in the prototype are viewport-based
+     and will still run under the drawer; that is a browser limit. */
+  var DRAWER_W = 360, MOBILE = 640;
+  var docEl = document.documentElement;
+  var savedMargin = null;
+  function applyPush() {
+    var push = state.open && window.innerWidth > MOBILE;
+    if (push) {
+      if (savedMargin === null) savedMargin = docEl.style.marginRight || "";
+      docEl.style.setProperty("margin-right", DRAWER_W + "px", "important");
+    } else if (savedMargin !== null) {
+      docEl.style.marginRight = savedMargin;
+      if (!docEl.style.marginRight) docEl.style.removeProperty("margin-right");
+      savedMargin = null;
+    }
+    $("#drawer").classList.toggle("docked", push);
+  }
+  window.addEventListener("resize", applyPush);
+
   function setOpen(open) {
     state.open = !!open;
     lsSet(LS.drawer, state.open ? "1" : "0");
     $("#drawer").classList.toggle("open", state.open);
     $("#pill").hidden = state.open;
     $("#pill").setAttribute("aria-expanded", state.open);
+    applyPush();
     if (!state.open) { setPlacing(false); cancelCompose(); }
     renderAll();
     if (state.open) load(true);
@@ -677,6 +698,7 @@
   $("#drawer").classList.toggle("open", state.open);
   $("#pill").hidden = state.open;
   $("#pill").setAttribute("aria-expanded", state.open);
+  applyPush();
   renderAll();
   load(!state.open);
 })();
