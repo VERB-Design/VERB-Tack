@@ -1,0 +1,38 @@
+{
+  "name": "verb-proof",
+  "version": "1.0.0",
+  "description": "Figma-style comments on live prototypes. One script tag, one Netlify Function, comments stored in Netlify Blobs.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Verb Interactive",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VERB-Design/VERB-Proof.git"
+  },
+  "exports": {
+    "./function": "./netlify/functions/proof.mjs",
+    "./embed": "./public/proof.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "verb-proof": "./bin/verb-proof.mjs"
+  },
+  "files": [
+    "netlify/functions/proof.mjs",
+    "public/proof.js",
+    "bin",
+    "templates",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "npx netlify-cli dev",
+    "dev:mock": "node --import ./test/register.mjs test/dev-server.mjs",
+    "test": "node --import ./test/register.mjs --test test/proof.test.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.1"
+  }
+}

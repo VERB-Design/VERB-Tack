@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proof · Comments on live prototypes</title>
+<meta name="description" content="Figma-style comments on any prototype hosted on Netlify. One script tag, no login.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FBFAF7; --paper-dim:#F2F0EA; --ink:#1C1A17; --ink-soft:#5C574F;
+    --line:#E3DFD6; --grease:#E2472B; --grease-deep:#C33517; --stamp:#2E7D4F; --chrome:#FFFFFF;
+    --font-ui:"Instrument Sans",system-ui,sans-serif;
+    --font-mono:"Spline Sans Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font-ui);background:var(--paper);color:var(--ink);font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  :focus-visible{outline:2px solid var(--grease);outline-offset:2px;border-radius:4px}
+  main{max-width:720px;margin:0 auto;padding:48px 16px 96px}
+  .brandmark{display:flex;align-items:center;gap:10px;font-weight:600}
+  .brandmark .dot{width:22px;height:22px;border-radius:50% 46% 52% 48%;background:var(--grease);position:relative;flex:none}
+  .brandmark .dot::after{content:"";position:absolute;inset:6px;border-radius:inherit;background:var(--paper)}
+  .brandmark small{font-family:var(--font-mono);font-weight:500;font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.14em;display:block;margin-top:1px}
+  h1{font-size:clamp(30px,5vw,40px);letter-spacing:-.02em;font-weight:600;line-height:1.15;margin:30px 0 14px;max-width:20ch}
+  h1 em{font-style:normal;color:var(--grease-deep)}
+  .lede{color:var(--ink-soft);max-width:56ch;margin-bottom:28px}
+  .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:56px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:9px;font-weight:600;font-size:15px;border:1px solid var(--line);background:var(--chrome);text-decoration:none;transition:border-color .15s,background .15s}
+  .btn:hover{border-color:#CFC9BD}
+  .btn.primary{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+  .btn.primary:hover{background:#000}
+  h2{font-size:13px;font-family:var(--font-mono);font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft);margin:44px 0 16px}
+  ol{counter-reset:step;list-style:none;display:grid;gap:14px}
+  ol li{display:grid;grid-template-columns:28px 1fr;gap:14px;align-items:start}
+  ol li::before{counter-increment:step;content:counter(step);width:26px;height:26px;border-radius:52% 46% 52% 48%;background:var(--grease);color:#fff;font-family:var(--font-mono);font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;transform:rotate(-4deg);margin-top:2px}
+  ol li:nth-child(even)::before{transform:rotate(5deg)}
+  ol li p{margin-bottom:6px}
+  pre{font-family:var(--font-mono);font-size:12.5px;line-height:1.55;background:var(--chrome);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto}
+  code{font-family:var(--font-mono);font-size:.92em;background:var(--paper-dim);border-radius:4px;padding:1px 5px}
+  pre code{background:none;padding:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+  .card{background:var(--chrome);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card b{display:block;margin-bottom:4px}
+  .card p{color:var(--ink-soft);font-size:14px}
+  kbd{font-family:var(--font-mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 6px;background:var(--chrome)}
+  footer{margin-top:64px;color:var(--ink-soft);font-size:13px;border-top:1px solid var(--line);padding-top:20px}
+</style>
+</head>
+<body>
+<main>
+  <div class="brandmark"><span class="dot"></span><span>Proof<small>Verb Interactive</small></span></div>
+  <h1>Comments on the <em>real page,</em> not a screenshot of it.</h1>
+  <p class="lede">Proof adds Figma-style pinned comments to any prototype hosted on Netlify. Reviewers open the drawer, click the thing they mean, and type. No accounts. Comments are stored with the prototype and follow their element through responsive reflow.</p>
+  <div class="cta-row">
+    <a class="btn primary" href="/demo.html">Open the demo</a>
+    <a class="btn" href="https://github.com/VERB-Design/VERB-Proof">Source on GitHub</a>
+  </div>
+
+  <h2>What reviewers get</h2>
+  <div class="grid">
+    <div class="card"><b>Numbered pins</b><p>Every comment gets a number that stays put. The pin and the drawer row share it.</p></div>
+    <div class="card"><b>A side drawer</b><p>All comments for the page, threaded replies, and a filter for ongoing, resolved, or all.</p></div>
+    <div class="card"><b>Toggle visibility</b><p>Close the drawer and the pins go too, so the prototype reads clean. <kbd>Shift</kbd>+<kbd>C</kbd> brings it back.</p></div>
+    <div class="card"><b>No login</b><p>Reviewers give a display name once. They can delete only their own comments.</p></div>
+  </div>
+
+  <h2>Add Proof to a prototype</h2>
+  <ol>
+    <li><div><p>Add the package and the function file. Run this in the prototype repo:</p>
+      <pre><code>npm init -y
+npm install github:VERB-Design/VERB-Proof
+npx verb-proof init</code></pre></div></li>
+    <li><div><p>Add the script tag to your pages, usually in a shared header include:</p>
+      <pre><code>&lt;script src="https://verb-proof.netlify.app/proof.js" defer&gt;&lt;/script&gt;</code></pre></div></li>
+    <li><div><p>In Netlify, set one environment variable so you can delete comments and export them:</p>
+      <pre><code>PROOF_ADMIN_KEY = a-long-random-string</code></pre></div></li>
+    <li><div><p>Deploy. Open the site, press <kbd>Shift</kbd>+<kbd>C</kbd>, and leave the first comment.</p></div></li>
+  </ol>
+
+  <h2>Where the data lives</h2>
+  <p>Each prototype keeps its own comments in its own Netlify Blobs store. Delete the site and the comments go with it. To export everything on a site as JSON:</p>
+  <pre><code>curl -H "x-proof-admin: $PROOF_ADMIN_KEY" https://your-prototype.netlify.app/api/proof/export</code></pre>
+
+  <footer>Proof is a Verb Interactive tool. The pins are shaped like thumbtacks on purpose.</footer>
+</main>
+</body>
+</html>
