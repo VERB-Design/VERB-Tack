@@ -30,7 +30,8 @@ Add Tack review comments to this prototype. The site is hosted on Netlify.
 Do this:
 1. If there is no package.json, run `npm init -y`.
 2. Run `npm install github:VERB-Design/VERB-Tack` then `npx verb-tack init`.
-   That writes netlify/functions/tack.mjs, a .nvmrc if missing, and a netlify.toml if missing.
+   That writes netlify/functions/tack.mjs, a .nvmrc if missing, a netlify.toml if missing,
+   and generates TACK_ADMIN_KEY into a git-ignored .env.
 3. If netlify.toml already existed, make sure it has this block and leave everything else in it alone:
      [functions]
        directory = "netlify/functions"
@@ -46,9 +47,9 @@ Do this:
 
 Then show me the list of files you changed. Do not commit.
 
-After you finish, remind me to do these two things in the Netlify UI:
-  - Site configuration → Environment variables → add TACK_ADMIN_KEY with a long random value
-  - Trigger a deploy, open the site, and press C
+After you finish, show me the TACK_ADMIN_KEY value the installer printed and remind me to:
+  - add it in the Netlify UI under Site configuration → Environment variables
+  - trigger a deploy, open the site, and press C
 ```
 
 ## Add Tack to a prototype
@@ -61,7 +62,7 @@ npm install github:VERB-Design/VERB-Tack
 npx verb-tack init
 ```
 
-`init` writes `netlify/functions/tack.mjs`, a `.nvmrc` pinning Node 22 if there is none, and a minimal `netlify.toml` if there is none. If you already have a `netlify.toml`, make sure it has:
+`init` writes `netlify/functions/tack.mjs`, a `.nvmrc` pinning Node 22 if there is none, and a minimal `netlify.toml` if there is none. It also generates an admin key, saves it as `TACK_ADMIN_KEY` in a git-ignored `.env` (which `netlify dev` reads), and prints it. Re-running `init` reuses the saved key. If you already have a `netlify.toml`, make sure it has:
 
 ```toml
 [functions]
@@ -75,10 +76,10 @@ Add the script tag to your pages, usually in a shared header include:
 <script src="https://verb-tack.netlify.app/tack.js" defer></script>
 ```
 
-In Netlify, under Site configuration → Environment variables, add:
+In Netlify, under Site configuration → Environment variables, add the key the installer printed:
 
 ```
-TACK_ADMIN_KEY = <a long random string>
+TACK_ADMIN_KEY = <value from .env>
 ```
 
 Deploy. Open the site and press **C**.
