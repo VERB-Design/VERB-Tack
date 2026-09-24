@@ -1,4 +1,6 @@
-# VERB-Tack
+# Tack
+
+Repo and package: `VERB-Design/VERB-Tack`, `verb-tack`. The tool is just Tack.
 
 Figma-style comments on live prototypes. One script tag, one Netlify Function, comments stored in Netlify Blobs. No login.
 
@@ -16,14 +18,14 @@ prototype site on Netlify
 
 Each prototype keeps its own comments in its own site. Delete the site and the comments go with it. Nothing is shared between prototypes.
 
-The embed script is served from the VERB-Tack site itself, so fixes to the UI reach every prototype on the next page load. The function is pinned per prototype through the package version.
+The embed script is served from the Tack site itself, so fixes to the UI reach every prototype on the next page load. The function is pinned per prototype through the package version.
 
 ## Install with Claude Code
 
 Open Claude Code in the prototype repo and paste this. Use the copy button on the block.
 
 ```text
-Add VERB-Tack review comments to this prototype. The site is hosted on Netlify.
+Add Tack review comments to this prototype. The site is hosted on Netlify.
 
 Do this:
 1. If there is no package.json, run `npm init -y`.
@@ -49,7 +51,7 @@ After you finish, remind me to do these two things in the Netlify UI:
   - Trigger a deploy, open the site, and press Shift+C
 ```
 
-## Add VERB-Tack to a prototype
+## Add Tack to a prototype
 
 The prototype must be hosted on Netlify. In the prototype repo:
 
@@ -103,7 +105,7 @@ npx verb-tack copy public      # or whatever your publish dir is
 
 Run the copy again after bumping the package.
 
-## Using VERB-Tack
+## Using Tack
 
 - **Pill** bottom-right shows the count of ongoing comments. Click it, or press Shift+C, to open the drawer.
 - **New comment** turns the cursor into a crosshair. Click anywhere on the page. The composer appears in the drawer; the first time, it asks for a display name and remembers it.

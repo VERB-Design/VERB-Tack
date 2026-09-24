@@ -37,4 +37,4 @@ createServer(async (req, res) => {
   } catch {
     res.writeHead(404); res.end("not found");
   }
-}).listen(PORT, () => console.log(`VERB-Tack dev server → http://localhost:${PORT}/demo.html`));
+}).listen(PORT, () => console.log(`Tack dev server → http://localhost:${PORT}/demo.html`));

@@ -1,6 +1,6 @@
 /* ============================================================
-   VERB-Tack API · Verb Interactive
-   Netlify Function (v2) backing the VERB-Tack comments overlay.
+   Tack API · Verb Interactive
+   Netlify Function (v2) backing the Tack comments overlay.
    Storage: Netlify Blobs, store "tack", one blob per comment.
 
    Routes (all under /api/tack):

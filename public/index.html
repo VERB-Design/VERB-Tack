@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VERB-Tack · Comments on live prototypes</title>
+<title>Tack · Comments on live prototypes</title>
 <meta name="description" content="Figma-style comments on any prototype hosted on Netlify. One script tag, no login.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -52,9 +52,9 @@
 </head>
 <body>
 <main>
-  <div class="brandmark"><span class="dot"></span><span>VERB-Tack<small>Verb Interactive</small></span></div>
+  <div class="brandmark"><span class="dot"></span><span>Tack<small>Verb Interactive</small></span></div>
   <h1>Comments on the <em>real page,</em> not a screenshot of it.</h1>
-  <p class="lede">VERB-Tack adds Figma-style pinned comments to any prototype hosted on Netlify. Reviewers open the drawer, click the thing they mean, and type. No accounts. Comments are stored with the prototype and follow their element through responsive reflow.</p>
+  <p class="lede">Tack adds Figma-style pinned comments to any prototype hosted on Netlify. Reviewers open the drawer, click the thing they mean, and type. No accounts. Comments are stored with the prototype and follow their element through responsive reflow.</p>
   <div class="cta-row">
     <a class="btn primary" href="/demo.html">Open the demo</a>
     <a class="btn" href="https://github.com/VERB-Design/VERB-Tack">Source on GitHub</a>
@@ -68,7 +68,7 @@
     <div class="card"><b>No login</b><p>Reviewers give a display name once. They can delete only their own comments.</p></div>
   </div>
 
-  <h2>Add VERB-Tack to a prototype</h2>
+  <h2>Add Tack to a prototype</h2>
   <ol>
     <li><div><p>Add the package and the function file. Run this in the prototype repo:</p>
       <pre><code>npm init -y
@@ -85,7 +85,7 @@ npx verb-tack init</code></pre></div></li>
   <p>Each prototype keeps its own comments in its own Netlify Blobs store. Delete the site and the comments go with it. To export everything on a site as JSON:</p>
   <pre><code>curl -H "x-tack-admin: $TACK_ADMIN_KEY" https://your-prototype.netlify.app/api/tack/export</code></pre>
 
-  <footer>VERB-Tack is a Verb Interactive tool. The pins are shaped like thumbtacks on purpose.</footer>
+  <footer>Tack is a Verb Interactive tool. The pins are shaped like thumbtacks on purpose.</footer>
 </main>
 </body>
 </html>

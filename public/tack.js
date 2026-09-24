@@ -1,16 +1,16 @@
 /* ============================================================
-   VERB-Tack — Figma-style comments on live prototypes · Verb Interactive
+   Tack — Figma-style comments on live prototypes · Verb Interactive
    v1.0.0
 
-   Add to any page on a Netlify site that has the VERB-Tack function:
+   Add to any page on a Netlify site that has the Tack function:
      <script src="/tack.js" defer></script>
 
    Options (data attributes on the script tag):
-     data-api="/api/tack"     where the VERB-Tack function lives (default: same site)
+     data-api="/api/tack"     where the Tack function lives (default: same site)
      data-page="/custom/key"   override the page identity (default: pathname)
      data-open="true"          start with the drawer open
 
-   Comments are stored server-side through the VERB-Tack function; nothing
+   Comments are stored server-side through the Tack function; nothing
    here is a secret. Reviewers pick a display name once. A random token
    in localStorage lets them delete their own comments and nothing else.
 ============================================================ */
@@ -84,7 +84,7 @@
       return r.text().then(function (t) {
         var d = null;
         try { d = t ? JSON.parse(t) : null; } catch (e) { /* not json */ }
-        if (!r.ok) throw new Error((d && d.error) || ("VERB-Tack server returned " + r.status));
+        if (!r.ok) throw new Error((d && d.error) || ("Tack server returned " + r.status));
         return d;
       });
     });
@@ -99,9 +99,9 @@
       renderAll();
     }).catch(function (err) {
       state.loading = false;
-      state.error = err.message || "Could not reach the VERB-Tack server.";
+      state.error = err.message || "Could not reach the Tack server.";
       renderAll();
-      if (!silent) toast("VERB-Tack can’t reach its server");
+      if (!silent) toast("Tack can’t reach its server");
     });
   }
 
@@ -239,9 +239,9 @@
     '  <div class="capture" id="capture"><span class="edge"></span></div>' +
     '  <div class="hint" id="hint" hidden>Click anywhere on the page to place the comment · Esc to cancel</div>' +
     '  <div id="pins"></div>' +
-    '  <aside class="drawer" id="drawer" aria-label="VERB-Tack comments">' +
+    '  <aside class="drawer" id="drawer" aria-label="Tack comments">' +
     '    <header class="d-head">' +
-    '      <span class="logo"><span class="dot"></span>VERB-Tack</span>' +
+    '      <span class="logo"><span class="dot"></span>Tack</span>' +
     '      <span class="count" id="dCount"></span>' +
     '      <button class="x" id="dClose" aria-label="Hide comments" title="Hide comments (Shift+C)">&times;</button>' +
     '    </header>' +
@@ -260,7 +260,7 @@
     '      <button class="btn sm" id="copyBtn">Copy summary</button>' +
     '    </footer>' +
     '  </aside>' +
-    '  <button class="pill" id="pill" aria-expanded="false" title="Show comments (Shift+C)"><span class="dot"></span>VERB-Tack <span class="cnt" id="pillCnt">0</span></button>' +
+    '  <button class="pill" id="pill" aria-expanded="false" title="Show comments (Shift+C)"><span class="dot"></span>Tack <span class="cnt" id="pillCnt">0</span></button>' +
     '  <div class="toast" id="toast" role="status"></div>' +
     '</div>';
 
@@ -627,7 +627,7 @@
 
   /* ---------- summary ---------- */
   $("#copyBtn").addEventListener("click", function () {
-    var lines = ["# VERB-Tack comments — " + document.title, "URL: " + location.href, ""];
+    var lines = ["# Tack comments — " + document.title, "URL: " + location.href, ""];
     state.comments.slice().sort(function (a, b) { return a.n - b.n; }).forEach(function (c) {
       lines.push(c.n + ". [" + (c.resolved ? "resolved" : "ongoing") + "] " + c.author + ": " + c.text);
       c.replies.forEach(function (r) { lines.push("     ↳ " + r.author + ": " + r.text); });
