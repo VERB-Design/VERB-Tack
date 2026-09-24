@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* verb-tack CLI
-     npx verb-tack init [publishDir]   add the function file (and copy tack.js if a publish dir is given)
+     npx verb-tack init [publishDir]   add the function file and .nvmrc (and copy tack.js if a publish dir is given)
      npx verb-tack copy <publishDir>   copy tack.js into a publish directory
 */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -27,6 +27,12 @@ function init(publishDir) {
   } else {
     writeFileSync(fnFile, readFileSync(join(pkgRoot, "templates", "tack.mjs")));
     console.log("✓ wrote netlify/functions/tack.mjs");
+  }
+
+  const nvmrc = resolve(".nvmrc");
+  if (!existsSync(nvmrc)) {
+    writeFileSync(nvmrc, "22\n");
+    console.log("✓ wrote .nvmrc (Node 22, required by @netlify/blobs)");
   }
 
   const toml = resolve("netlify.toml");

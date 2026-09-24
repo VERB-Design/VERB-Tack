@@ -18,6 +18,37 @@ Each prototype keeps its own comments in its own site. Delete the site and the c
 
 The embed script is served from the VERB-Tack site itself, so fixes to the UI reach every prototype on the next page load. The function is pinned per prototype through the package version.
 
+## Install with Claude Code
+
+Open Claude Code in the prototype repo and paste this. Use the copy button on the block.
+
+```text
+Add VERB-Tack review comments to this prototype. The site is hosted on Netlify.
+
+Do this:
+1. If there is no package.json, run `npm init -y`.
+2. Run `npm install github:VERB-Design/VERB-Tack` then `npx verb-tack init`.
+   That writes netlify/functions/tack.mjs, a .nvmrc if missing, and a netlify.toml if missing.
+3. If netlify.toml already existed, make sure it has this block and leave everything else in it alone:
+     [functions]
+       directory = "netlify/functions"
+       node_bundler = "esbuild"
+4. Add this tag just before </body> on every HTML page a reviewer will open:
+     <script src="https://verb-tack.netlify.app/tack.js" defer></script>
+   If the pages share a footer or layout include, add it there once instead.
+   Skip 404 pages, email templates, and any page that already has the tag.
+5. If the prototype is hash-routed so several screens share one file, add
+   data-page="/<screen-name>" to the tag on that file and tell me you did.
+6. Make sure node_modules/ and .netlify/ are in .gitignore.
+7. Verify with: node -e "import('verb-tack/function').then(() => console.log('ok'))"
+
+Then show me the list of files you changed. Do not commit.
+
+After you finish, remind me to do these two things in the Netlify UI:
+  - Site configuration → Environment variables → add TACK_ADMIN_KEY with a long random value
+  - Trigger a deploy, open the site, and press Shift+C
+```
+
 ## Add VERB-Tack to a prototype
 
 The prototype must be hosted on Netlify. In the prototype repo:
@@ -28,7 +59,7 @@ npm install github:VERB-Design/VERB-Tack
 npx verb-tack init
 ```
 
-`init` writes `netlify/functions/tack.mjs` and, if there is no `netlify.toml`, a minimal one. If you already have a `netlify.toml`, make sure it has:
+`init` writes `netlify/functions/tack.mjs`, a `.nvmrc` pinning Node 22 if there is none, and a minimal `netlify.toml` if there is none. If you already have a `netlify.toml`, make sure it has:
 
 ```toml
 [functions]
