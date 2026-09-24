@@ -1,9 +1,9 @@
 /* ============================================================
-   Proof API · Verb Interactive
-   Netlify Function (v2) backing the Proof comments overlay.
-   Storage: Netlify Blobs, store "proof", one blob per comment.
+   VERB-Tack API · Verb Interactive
+   Netlify Function (v2) backing the VERB-Tack comments overlay.
+   Storage: Netlify Blobs, store "tack", one blob per comment.
 
-   Routes (all under /api/proof):
+   Routes (all under /api/tack):
      GET    /comments?page=/path          list comments for a page
      POST   /comments                     create a comment
      PATCH  /comments/:id                 reply · resolve/reopen · edit text
@@ -12,8 +12,8 @@
      GET    /health                       { ok: true }
 
    Environment:
-     PROOF_ADMIN_KEY   required for DELETE (non-owner) and /export
-     PROOF_ORIGINS     optional, comma-separated extra origins allowed to
+     TACK_ADMIN_KEY   required for DELETE (non-owner) and /export
+     TACK_ORIGINS     optional, comma-separated extra origins allowed to
                        call this API (only needed when the embed runs on a
                        different site than the function)
 ============================================================ */
@@ -22,7 +22,7 @@ import { getStore } from "@netlify/blobs";
 
 export const VERSION = "1.0.0";
 
-export const config = { path: "/api/proof/*" };
+export const config = { path: "/api/tack/*" };
 
 const MAX_TEXT = 2000;
 const MAX_NAME = 60;
@@ -39,7 +39,7 @@ export default async function handler(req, context) {
   if (req.method === "OPTIONS") return cors(new Response(null, { status: 204 }), allowed);
   if (origin && !allowed) return json({ error: "Origin not allowed" }, 403);
 
-  const parts = url.pathname.replace(/^\/api\/proof\/?/, "").split("/").filter(Boolean);
+  const parts = url.pathname.replace(/^\/api\/tack\/?/, "").split("/").filter(Boolean);
   const [resource, id] = parts;
   const admin = isAdmin(req);
 
@@ -51,21 +51,21 @@ export default async function handler(req, context) {
     else res = json({ error: "Not found" }, 404);
     return cors(res, allowed);
   } catch (err) {
-    console.error("[proof]", err);
+    console.error("[tack]", err);
     return cors(json({ error: "Server error" }, 500), allowed);
   }
 }
 
 /* ---------- /comments ---------- */
 async function comments(req, url, id, admin, context) {
-  const store = getStore({ name: "proof", consistency: "strong" });
+  const store = getStore({ name: "tack", consistency: "strong" });
   const body = req.method === "GET" || req.method === "DELETE" ? {} : await readJson(req);
   const page = normalizePage(url.searchParams.get("page") ?? body.page);
   if (!page) return json({ error: "page is required" }, 400);
 
   const pk = await pageKey(page);
   const prefix = `c/${pk}/`;
-  const token = req.headers.get("x-proof-token") || body.token || "";
+  const token = req.headers.get("x-tack-token") || body.token || "";
   const tokenHash = token ? await sha256(token) : "";
 
   /* list */
@@ -168,7 +168,7 @@ async function comments(req, url, id, admin, context) {
 
 /* ---------- /export ---------- */
 async function exportAll() {
-  const store = getStore({ name: "proof", consistency: "strong" });
+  const store = getStore({ name: "tack", consistency: "strong" });
   const items = await readAll(store, "c/");
   const byPage = {};
   for (const c of items) (byPage[c.page] ||= []).push(publicView(c, "", true));
@@ -240,15 +240,15 @@ async function readJson(req) {
 }
 
 function isAdmin(req) {
-  const key = Netlify.env.get("PROOF_ADMIN_KEY");
-  const given = req.headers.get("x-proof-admin");
+  const key = Netlify.env.get("TACK_ADMIN_KEY");
+  const given = req.headers.get("x-tack-admin");
   return !!(key && given && given === key);
 }
 
 function originAllowed(origin, url) {
   if (!origin) return null;                   // same-origin GET, curl, etc.
   if (origin === url.origin) return origin;
-  const extra = (Netlify.env.get("PROOF_ORIGINS") || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const extra = (Netlify.env.get("TACK_ORIGINS") || "").split(",").map((s) => s.trim()).filter(Boolean);
   return extra.includes(origin) ? origin : null;
 }
 
@@ -257,7 +257,7 @@ function cors(res, origin) {
   const h = new Headers(res.headers);
   h.set("Access-Control-Allow-Origin", origin);
   h.set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
-  h.set("Access-Control-Allow-Headers", "Content-Type, X-Proof-Token, X-Proof-Admin");
+  h.set("Access-Control-Allow-Headers", "Content-Type, X-Tack-Token, X-Tack-Admin");
   h.set("Vary", "Origin");
   return new Response(res.body, { status: res.status, headers: h });
 }

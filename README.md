@@ -1,4 +1,4 @@
-# Proof
+# VERB-Tack
 
 Figma-style comments on live prototypes. One script tag, one Netlify Function, comments stored in Netlify Blobs. No login.
 
@@ -8,27 +8,27 @@ Reviewers open a side drawer, click the element they mean, and type. Every comme
 
 ```
 prototype site on Netlify
-├── your pages            ← <script src=".../proof.js" defer>
+├── your pages            ← <script src=".../tack.js" defer>
 ├── netlify/functions/
-│   └── proof.mjs         ← 3 lines, re-exports the handler from this package
-└── Netlify Blobs store "proof"   ← one blob per comment, keyed by page
+│   └── tack.mjs         ← 3 lines, re-exports the handler from this package
+└── Netlify Blobs store "tack"   ← one blob per comment, keyed by page
 ```
 
 Each prototype keeps its own comments in its own site. Delete the site and the comments go with it. Nothing is shared between prototypes.
 
-The embed script is served from the Proof site itself, so fixes to the UI reach every prototype on the next page load. The function is pinned per prototype through the package version.
+The embed script is served from the VERB-Tack site itself, so fixes to the UI reach every prototype on the next page load. The function is pinned per prototype through the package version.
 
-## Add Proof to a prototype
+## Add VERB-Tack to a prototype
 
 The prototype must be hosted on Netlify. In the prototype repo:
 
 ```bash
 npm init -y                                   # skip if package.json exists
-npm install github:VERB-Design/VERB-Proof
-npx verb-proof init
+npm install github:VERB-Design/VERB-Tack
+npx verb-tack init
 ```
 
-`init` writes `netlify/functions/proof.mjs` and, if there is no `netlify.toml`, a minimal one. If you already have a `netlify.toml`, make sure it has:
+`init` writes `netlify/functions/tack.mjs` and, if there is no `netlify.toml`, a minimal one. If you already have a `netlify.toml`, make sure it has:
 
 ```toml
 [functions]
@@ -39,13 +39,13 @@ npx verb-proof init
 Add the script tag to your pages, usually in a shared header include:
 
 ```html
-<script src="https://verb-proof.netlify.app/proof.js" defer></script>
+<script src="https://verb-tack.netlify.app/tack.js" defer></script>
 ```
 
 In Netlify, under Site configuration → Environment variables, add:
 
 ```
-PROOF_ADMIN_KEY = <a long random string>
+TACK_ADMIN_KEY = <a long random string>
 ```
 
 Deploy. Open the site and press **Shift+C**.
@@ -54,7 +54,7 @@ Deploy. Open the site and press **Shift+C**.
 
 | Attribute | Default | Purpose |
 |---|---|---|
-| `data-api` | `/api/proof` | Where the function lives. Change only if you deployed it elsewhere. |
+| `data-api` | `/api/tack` | Where the function lives. Change only if you deployed it elsewhere. |
 | `data-page` | the pathname | Override the page identity. Useful for hash-routed prototypes where several states share one file. |
 | `data-open` | `false` | Start with the drawer open. |
 
@@ -63,16 +63,16 @@ Deploy. Open the site and press **Shift+C**.
 If you would rather pin the UI with the prototype, copy it into your publish folder and point the tag at it:
 
 ```bash
-npx verb-proof copy public      # or whatever your publish dir is
+npx verb-tack copy public      # or whatever your publish dir is
 ```
 
 ```html
-<script src="/proof.js" defer></script>
+<script src="/tack.js" defer></script>
 ```
 
 Run the copy again after bumping the package.
 
-## Using Proof
+## Using VERB-Tack
 
 - **Pill** bottom-right shows the count of ongoing comments. Click it, or press Shift+C, to open the drawer.
 - **New comment** turns the cursor into a crosshair. Click anywhere on the page. The composer appears in the drawer; the first time, it asks for a display name and remembers it.
@@ -90,16 +90,16 @@ Anyone can comment, reply, resolve, and reopen. Only the author of a comment, id
 
 ```bash
 # export every comment on the site as JSON
-curl -H "x-proof-admin: $PROOF_ADMIN_KEY" https://your-site.netlify.app/api/proof/export
+curl -H "x-tack-admin: $TACK_ADMIN_KEY" https://your-site.netlify.app/api/tack/export
 
 # delete a comment as admin
-curl -X DELETE -H "x-proof-admin: $PROOF_ADMIN_KEY" \
-  "https://your-site.netlify.app/api/proof/comments/c_abc123?page=/rooms"
+curl -X DELETE -H "x-tack-admin: $TACK_ADMIN_KEY" \
+  "https://your-site.netlify.app/api/tack/comments/c_abc123?page=/rooms"
 ```
 
 ## API
 
-All routes are under `/api/proof`. Bodies and responses are JSON.
+All routes are under `/api/tack`. Bodies and responses are JSON.
 
 | Method | Path | Body | Notes |
 |---|---|---|---|
@@ -110,7 +110,7 @@ All routes are under `/api/proof`. Bodies and responses are JSON.
 | GET | `/export` | | Admin key. Everything on the site, grouped by page. |
 | GET | `/health` | | `{ ok, version }` |
 
-Headers: `X-Proof-Token` (the browser's owner token, sent automatically by the embed) and `X-Proof-Admin`.
+Headers: `X-Tack-Token` (the browser's owner token, sent automatically by the embed) and `X-Tack-Admin`.
 
 Limits: 2000 characters per comment or reply, 60 for a name, 30 writes per IP per 10 minutes.
 
@@ -118,8 +118,8 @@ Limits: 2000 characters per comment or reply, 60 for a name, 30 writes per IP pe
 
 | Name | Required | Purpose |
 |---|---|---|
-| `PROOF_ADMIN_KEY` | yes, for admin routes | Delete anything, export everything. |
-| `PROOF_ORIGINS` | no | Comma-separated extra origins allowed to call the API. Only needed if the embed runs on a different site than the function. |
+| `TACK_ADMIN_KEY` | yes, for admin routes | Delete anything, export everything. |
+| `TACK_ORIGINS` | no | Comma-separated extra origins allowed to call the API. Only needed if the embed runs on a different site than the function. |
 
 ## Local development
 

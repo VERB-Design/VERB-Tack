@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-/* verb-proof CLI
-     npx verb-proof init [publishDir]   add the function file (and copy proof.js if a publish dir is given)
-     npx verb-proof copy <publishDir>   copy proof.js into a publish directory
+/* verb-tack CLI
+     npx verb-tack init [publishDir]   add the function file (and copy tack.js if a publish dir is given)
+     npx verb-tack copy <publishDir>   copy tack.js into a publish directory
 */
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -14,19 +14,19 @@ const [cmd, arg] = process.argv.slice(2);
 function copyEmbed(dir) {
   const target = resolve(dir);
   mkdirSync(target, { recursive: true });
-  copyFileSync(join(pkgRoot, "public", "proof.js"), join(target, "proof.js"));
-  console.log(`✓ copied proof.js → ${join(dir, "proof.js")}`);
+  copyFileSync(join(pkgRoot, "public", "tack.js"), join(target, "tack.js"));
+  console.log(`✓ copied tack.js → ${join(dir, "tack.js")}`);
 }
 
 function init(publishDir) {
   const fnDir = resolve("netlify/functions");
-  const fnFile = join(fnDir, "proof.mjs");
+  const fnFile = join(fnDir, "tack.mjs");
   mkdirSync(fnDir, { recursive: true });
   if (existsSync(fnFile)) {
     console.log(`• ${fnFile} already exists, left as is`);
   } else {
-    writeFileSync(fnFile, readFileSync(join(pkgRoot, "templates", "proof.mjs")));
-    console.log("✓ wrote netlify/functions/proof.mjs");
+    writeFileSync(fnFile, readFileSync(join(pkgRoot, "templates", "tack.mjs")));
+    console.log("✓ wrote netlify/functions/tack.mjs");
   }
 
   const toml = resolve("netlify.toml");
@@ -47,9 +47,9 @@ function init(publishDir) {
   console.log(`
 Next steps
   1. Add to your pages:
-       <script src="${publishDir ? "/proof.js" : "https://verb-proof.netlify.app/proof.js"}" defer></script>
+       <script src="${publishDir ? "/tack.js" : "https://verb-tack.netlify.app/tack.js"}" defer></script>
   2. In Netlify → Site configuration → Environment variables, add
-       PROOF_ADMIN_KEY = <a long random string>
+       TACK_ADMIN_KEY = <a long random string>
   3. Deploy. Open the site and press Shift+C.
 `);
 }
@@ -57,9 +57,9 @@ Next steps
 switch (cmd) {
   case "init": init(arg); break;
   case "copy":
-    if (!arg) { console.error("usage: verb-proof copy <publishDir>"); process.exit(1); }
+    if (!arg) { console.error("usage: verb-tack copy <publishDir>"); process.exit(1); }
     copyEmbed(arg); break;
   default:
-    console.log("usage:\n  verb-proof init [publishDir]\n  verb-proof copy <publishDir>");
+    console.log("usage:\n  verb-tack init [publishDir]\n  verb-tack copy <publishDir>");
     process.exit(cmd ? 1 : 0);
 }

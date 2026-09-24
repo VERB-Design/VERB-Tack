@@ -1,5 +1,5 @@
 {
-  "name": "verb-proof",
+  "name": "verb-tack",
   "version": "1.0.0",
   "description": "Figma-style comments on live prototypes. One script tag, one Netlify Function, comments stored in Netlify Blobs.",
   "type": "module",
@@ -7,19 +7,19 @@
   "author": "Verb Interactive",
   "repository": {
     "type": "git",
-    "url": "https://github.com/VERB-Design/VERB-Proof.git"
+    "url": "https://github.com/VERB-Design/VERB-Tack.git"
   },
   "exports": {
-    "./function": "./netlify/functions/proof.mjs",
-    "./embed": "./public/proof.js",
+    "./function": "./netlify/functions/tack.mjs",
+    "./embed": "./public/tack.js",
     "./package.json": "./package.json"
   },
   "bin": {
-    "verb-proof": "./bin/verb-proof.mjs"
+    "verb-tack": "./bin/verb-tack.mjs"
   },
   "files": [
-    "netlify/functions/proof.mjs",
-    "public/proof.js",
+    "netlify/functions/tack.mjs",
+    "public/tack.js",
     "bin",
     "templates",
     "README.md"
@@ -30,7 +30,7 @@
   "scripts": {
     "dev": "npx netlify-cli dev",
     "dev:mock": "node --import ./test/register.mjs test/dev-server.mjs",
-    "test": "node --import ./test/register.mjs --test test/proof.test.mjs"
+    "test": "node --import ./test/register.mjs --test test/tack.test.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^11.1.1"

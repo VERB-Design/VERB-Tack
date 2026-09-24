@@ -1,31 +1,31 @@
 /* ============================================================
-   Proof — Figma-style comments on live prototypes · Verb Interactive
+   VERB-Tack — Figma-style comments on live prototypes · Verb Interactive
    v1.0.0
 
-   Add to any page on a Netlify site that has the Proof function:
-     <script src="/proof.js" defer></script>
+   Add to any page on a Netlify site that has the VERB-Tack function:
+     <script src="/tack.js" defer></script>
 
    Options (data attributes on the script tag):
-     data-api="/api/proof"     where the Proof function lives (default: same site)
+     data-api="/api/tack"     where the VERB-Tack function lives (default: same site)
      data-page="/custom/key"   override the page identity (default: pathname)
      data-open="true"          start with the drawer open
 
-   Comments are stored server-side through the Proof function; nothing
+   Comments are stored server-side through the VERB-Tack function; nothing
    here is a secret. Reviewers pick a display name once. A random token
    in localStorage lets them delete their own comments and nothing else.
 ============================================================ */
 (function () {
   "use strict";
-  if (window.__proofLoaded) return;
-  window.__proofLoaded = true;
+  if (window.__tackLoaded) return;
+  window.__tackLoaded = true;
 
   var script = document.currentScript || {};
   var ds = script.dataset || {};
-  var API = (ds.api || "/api/proof").replace(/\/+$/, "");
+  var API = (ds.api || "/api/tack").replace(/\/+$/, "");
   var PAGE = normalizePage(ds.page || location.pathname);
   var Z = 2147483000;
   var POLL_MS = 20000;
-  var LS = { name: "proof.name", token: "proof.token", drawer: "proof.drawer", filter: "proof.filter" };
+  var LS = { name: "tack.name", token: "tack.token", drawer: "tack.drawer", filter: "tack.filter" };
 
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } }
@@ -72,7 +72,7 @@
   /* ---------- API ---------- */
   function api(path, opts) {
     opts = opts || {};
-    var headers = { "X-Proof-Token": token };
+    var headers = { "X-Tack-Token": token };
     if (opts.body) headers["Content-Type"] = "application/json";
     return fetch(API + path, {
       method: opts.method || "GET",
@@ -84,7 +84,7 @@
       return r.text().then(function (t) {
         var d = null;
         try { d = t ? JSON.parse(t) : null; } catch (e) { /* not json */ }
-        if (!r.ok) throw new Error((d && d.error) || ("Proof server returned " + r.status));
+        if (!r.ok) throw new Error((d && d.error) || ("VERB-Tack server returned " + r.status));
         return d;
       });
     });
@@ -99,9 +99,9 @@
       renderAll();
     }).catch(function (err) {
       state.loading = false;
-      state.error = err.message || "Could not reach the Proof server.";
+      state.error = err.message || "Could not reach the VERB-Tack server.";
       renderAll();
-      if (!silent) toast("Proof can’t reach its server");
+      if (!silent) toast("VERB-Tack can’t reach its server");
     });
   }
 
@@ -113,7 +113,7 @@
 
   /* ---------- shadow host ---------- */
   var host = document.createElement("div");
-  host.id = "proof-widget";
+  host.id = "tack-widget";
   host.style.cssText = "position:absolute;top:0;left:0;width:100%;height:0;overflow:visible;z-index:" + Z + ";";
   document.body.appendChild(host);
   var root = host.attachShadow({ mode: "open" });
@@ -239,9 +239,9 @@
     '  <div class="capture" id="capture"><span class="edge"></span></div>' +
     '  <div class="hint" id="hint" hidden>Click anywhere on the page to place the comment · Esc to cancel</div>' +
     '  <div id="pins"></div>' +
-    '  <aside class="drawer" id="drawer" aria-label="Proof comments">' +
+    '  <aside class="drawer" id="drawer" aria-label="VERB-Tack comments">' +
     '    <header class="d-head">' +
-    '      <span class="logo"><span class="dot"></span>Proof</span>' +
+    '      <span class="logo"><span class="dot"></span>VERB-Tack</span>' +
     '      <span class="count" id="dCount"></span>' +
     '      <button class="x" id="dClose" aria-label="Hide comments" title="Hide comments (Shift+C)">&times;</button>' +
     '    </header>' +
@@ -260,7 +260,7 @@
     '      <button class="btn sm" id="copyBtn">Copy summary</button>' +
     '    </footer>' +
     '  </aside>' +
-    '  <button class="pill" id="pill" aria-expanded="false" title="Show comments (Shift+C)"><span class="dot"></span>Proof <span class="cnt" id="pillCnt">0</span></button>' +
+    '  <button class="pill" id="pill" aria-expanded="false" title="Show comments (Shift+C)"><span class="dot"></span>VERB-Tack <span class="cnt" id="pillCnt">0</span></button>' +
     '  <div class="toast" id="toast" role="status"></div>' +
     '</div>';
 
@@ -627,7 +627,7 @@
 
   /* ---------- summary ---------- */
   $("#copyBtn").addEventListener("click", function () {
-    var lines = ["# Proof comments — " + document.title, "URL: " + location.href, ""];
+    var lines = ["# VERB-Tack comments — " + document.title, "URL: " + location.href, ""];
     state.comments.slice().sort(function (a, b) { return a.n - b.n; }).forEach(function (c) {
       lines.push(c.n + ". [" + (c.resolved ? "resolved" : "ongoing") + "] " + c.author + ": " + c.text);
       c.replies.forEach(function (r) { lines.push("     ↳ " + r.author + ": " + r.text); });

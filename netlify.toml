@@ -6,7 +6,7 @@
   node_bundler = "esbuild"
 
 [[headers]]
-  for = "/proof.js"
+  for = "/tack.js"
   [headers.values]
     Cache-Control = "public, max-age=300"
     Access-Control-Allow-Origin = "*"

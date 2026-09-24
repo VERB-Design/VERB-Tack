@@ -1,4 +1,4 @@
-/* Zero-dependency local runner: serves ./public and routes /api/proof/*
+/* Zero-dependency local runner: serves ./public and routes /api/tack/*
    to the real function with an in-memory Blobs store. Comments vanish
    when the process exits. For persistent local Blobs use `netlify dev`.
 
@@ -8,8 +8,8 @@ import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 
-process.env.PROOF_ADMIN_KEY ||= "dev-admin";
-const { default: handler } = await import("../netlify/functions/proof.mjs");
+process.env.TACK_ADMIN_KEY ||= "dev-admin";
+const { default: handler } = await import("../netlify/functions/tack.mjs");
 
 const PORT = Number(process.env.PORT || 8787);
 const ROOT = new URL("../public/", import.meta.url).pathname;
@@ -17,7 +17,7 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; ch
 
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
-  if (url.pathname.startsWith("/api/proof")) {
+  if (url.pathname.startsWith("/api/tack")) {
     const chunks = [];
     for await (const c of req) chunks.push(c);
     const body = chunks.length ? Buffer.concat(chunks) : undefined;
@@ -37,4 +37,4 @@ createServer(async (req, res) => {
   } catch {
     res.writeHead(404); res.end("not found");
   }
-}).listen(PORT, () => console.log(`Proof dev server → http://localhost:${PORT}/demo.html`));
+}).listen(PORT, () => console.log(`VERB-Tack dev server → http://localhost:${PORT}/demo.html`));
