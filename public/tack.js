@@ -141,7 +141,9 @@
     /* pill */
     ".pill{position:fixed;bottom:20px;right:20px;z-index:20;display:flex;align-items:center;gap:10px;background:#000;color:#fff;border:1px solid var(--line2);padding:10px 16px 10px 14px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-size:12px;box-shadow:0 12px 32px rgba(0,0,0,.35);transition:border-color .15s,transform .15s}",
     ".pill:hover{border-color:#fff;transform:translateY(-1px)}",
-    ".pill .cnt{font-size:11px;background:#fff;color:#000;padding:1px 7px;min-width:20px;text-align:center;letter-spacing:0}",
+    ".pill .sep{width:1px;height:14px;background:var(--line2)}",
+    ".pill kbd{font:inherit;font-size:11px;color:var(--muted);letter-spacing:0}",
+    ".pill .cnt{font-size:11px;background:#fff;color:#000;padding:1px 7px;min-width:20px;text-align:center;letter-spacing:0;margin-left:2px}",
     ".pill .cnt.hot{background:var(--teal);color:#fff}",
 
     /* pins */
@@ -250,7 +252,7 @@
     '    <header class="d-head">' +
     '      <span class="logo">Tack</span>' +
     '      <span class="count" id="dCount"></span>' +
-    '      <button class="x" id="dClose" aria-label="Hide comments" title="Hide comments (Shift+C)">&times;</button>' +
+    '      <button class="x" id="dClose" aria-label="Hide comments" title="Hide comments (C)">&times;</button>' +
     '    </header>' +
     '    <div class="d-tools">' +
     '      <div class="seg" role="tablist" aria-label="Filter comments">' +
@@ -267,7 +269,7 @@
     '      <button class="btn sm" id="copyBtn">Copy summary</button>' +
     '    </footer>' +
     '  </aside>' +
-    '  <button class="pill" id="pill" aria-expanded="false" title="Show comments (Shift+C)">Tack <span class="cnt" id="pillCnt">0</span></button>' +
+    '  <button class="pill" id="pill" aria-expanded="false" title="Show comments (C)">Tack<span class="sep"></span><kbd>C</kbd><span class="cnt" id="pillCnt">0</span></button>' +
     '  <div class="toast" id="toast" role="status"></div>' +
     '</div>';
 
@@ -679,7 +681,9 @@
       if (state.pending && !typing) { cancelCompose(); return; }
       return;
     }
-    if (!typing && e.shiftKey && (e.key === "C" || e.key === "c") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    // Plain C toggles the drawer. Ignored while any input, textarea or
+    // editable element has focus, in the page or in the drawer.
+    if (!typing && (e.key === "c" || e.key === "C") && !e.metaKey && !e.ctrlKey && !e.altKey) {
       e.preventDefault();
       setOpen(!state.open);
     }

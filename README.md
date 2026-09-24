@@ -48,7 +48,7 @@ Then show me the list of files you changed. Do not commit.
 
 After you finish, remind me to do these two things in the Netlify UI:
   - Site configuration → Environment variables → add TACK_ADMIN_KEY with a long random value
-  - Trigger a deploy, open the site, and press Shift+C
+  - Trigger a deploy, open the site, and press C
 ```
 
 ## Add Tack to a prototype
@@ -81,7 +81,7 @@ In Netlify, under Site configuration → Environment variables, add:
 TACK_ADMIN_KEY = <a long random string>
 ```
 
-Deploy. Open the site and press **Shift+C**.
+Deploy. Open the site and press **C**.
 
 ### Script tag options
 
@@ -107,7 +107,7 @@ Run the copy again after bumping the package.
 
 ## Using Tack
 
-- **Pill** bottom-right shows the count of ongoing comments. Click it, or press Shift+C, to open the drawer. On screens wider than 640px the drawer docks and pushes the page left so nothing is hidden behind it. On phones it overlays and slides away while you place a pin.
+- **Pill** bottom-right shows the count of ongoing comments. Click it, or press C, to open the drawer. On screens wider than 640px the drawer docks and pushes the page left so nothing is hidden behind it. On phones it overlays and slides away while you place a pin.
 - **New comment** turns the cursor into a crosshair. Click anywhere on the page. The composer appears in the drawer; the first time, it asks for a display name and remembers it.
 - **Filter** the drawer and the pins by Ongoing, Resolved, or All. Ongoing is the default and the choice is remembered.
 - **Click a row** to expand it: replies, a reply box, Resolve or Reopen, and Delete on comments you wrote.

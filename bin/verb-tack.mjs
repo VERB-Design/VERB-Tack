@@ -56,7 +56,7 @@ Next steps
        <script src="${publishDir ? "/tack.js" : "https://verb-tack.netlify.app/tack.js"}" defer></script>
   2. In Netlify → Site configuration → Environment variables, add
        TACK_ADMIN_KEY = <a long random string>
-  3. Deploy. Open the site and press Shift+C.
+  3. Deploy. Open the site and press C.
 `);
 }
 
