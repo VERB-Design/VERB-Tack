@@ -6,6 +6,7 @@
    Routes (under /api/tack by default; the handler matches on the trailing
    segments, so it also works behind a rewrite to /.netlify/functions/tack/*):
      GET    /comments?page=/path          list comments for a page
+     GET    /comments?scope=site          list comments for every page on the site
      POST   /comments                     create a comment
      PATCH  /comments/:id                 reply · resolve/reopen · edit text
      DELETE /comments/:id?page=/path      owner token or admin key
@@ -21,7 +22,7 @@
 
 import { getStore } from "@netlify/blobs";
 
-export const VERSION = "1.0.0";
+export const VERSION = "1.1.0";
 
 export const config = { path: "/api/tack/*" };
 
@@ -64,13 +65,21 @@ export default async function handler(req, context) {
 async function comments(req, url, id, admin, context) {
   const store = getStore({ name: "tack", consistency: "strong" });
   const body = req.method === "GET" || req.method === "DELETE" ? {} : await readJson(req);
+  const token = req.headers.get("x-tack-token") || body.token || "";
+  const tokenHash = token ? await sha256(token) : "";
+
+  /* list every page. Nothing here is more than a visitor could read page by page. */
+  if (req.method === "GET" && !id && url.searchParams.get("scope") === "site") {
+    const items = await readAll(store, "c/");
+    items.sort((a, b) => (a.page < b.page ? -1 : a.page > b.page ? 1 : a.n - b.n));
+    return json(items.map((c) => publicView(c, tokenHash, admin)));
+  }
+
   const page = normalizePage(url.searchParams.get("page") ?? body.page);
   if (!page) return json({ error: "page is required" }, 400);
 
   const pk = await pageKey(page);
   const prefix = `c/${pk}/`;
-  const token = req.headers.get("x-tack-token") || body.token || "";
-  const tokenHash = token ? await sha256(token) : "";
 
   /* list */
   if (req.method === "GET" && !id) {
@@ -95,6 +104,8 @@ async function comments(req, url, id, admin, context) {
       id: "c_" + crypto.randomUUID().replace(/-/g, "").slice(0, 10),
       n,
       page,
+      path: cleanPath(body.path) || page,      // the real pathname, for links back to the page
+      title: clean(body.title, 120),
       anchor,
       author: clean(body.author, MAX_NAME) || "Guest",
       text,
@@ -225,6 +236,12 @@ function clean(v, max) {
   if (typeof v !== "string") return "";
   // strip control characters except newline and tab, collapse trailing space
   return v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim().slice(0, max);
+}
+
+/* Same-site absolute paths only, so a stored path can never send a reviewer off-site. */
+function cleanPath(p) {
+  const s = clean(p, 500).split(/[?#]/)[0];
+  return s.startsWith("/") && !s.startsWith("//") && !s.includes("\\") ? s : "";
 }
 
 function cleanAnchor(a) {

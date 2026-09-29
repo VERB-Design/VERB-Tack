@@ -110,10 +110,12 @@ Run the copy again after bumping the package.
 
 - **Pill** bottom-right shows the count of ongoing comments. Click it, or press C, to open the drawer. On screens wider than 640px the drawer docks and pushes the page left so nothing is hidden behind it. On phones it overlays and slides away while you place a pin.
 - **New comment** turns the cursor into a crosshair. Click anywhere on the page. The composer appears in the drawer; the first time, it asks for a display name and remembers it.
-- **Filter** the drawer and the pins by Ongoing, Resolved, or All. Ongoing is the default and the choice is remembered.
-- **Click a row** to expand it: replies, a reply box, Resolve or Reopen, and Delete on comments you wrote.
+- **This page / All pages** switches the drawer between the page you are on and every comment on the site, grouped by page. Clicking a comment on another page goes to that page, opens the drawer, and expands it with its pin in view.
+- **Filter** the drawer and the pins by Ongoing, Resolved, or All. Ongoing is the default and the choice is remembered. It applies to All pages too.
+- **Click a row** to expand it: replies, a reply box, Resolve or Reopen, Copy link, and Delete on comments you wrote.
+- **Copy link** gives a URL ending in `#tack=<id>`. Anyone who opens it lands on that comment, even if it is resolved and their filter would hide it.
 - **Click a pin** to jump to its row. Click a row to scroll the page to its pin.
-- **Copy summary** puts a plain-text list of every comment on the clipboard.
+- **Copy summary** puts a plain-text list of the comments on the clipboard: this page, or all pages when that view is showing.
 - **Esc** cancels placing. **Cmd/Ctrl+Enter** posts.
 
 Comments anchor to the element under the click plus an offset inside it, so they follow the layout through responsive reflow. If the element is hidden at the current width, the row says so and the pin hides with it.
@@ -168,7 +170,8 @@ All routes are under `/api/tack`. Bodies and responses are JSON.
 | Method | Path | Body | Notes |
 |---|---|---|---|
 | GET | `/comments?page=/path` | | Sorted by number. |
-| POST | `/comments` | `{ page, anchor, author, text }` | Returns the comment with its number. |
+| GET | `/comments?scope=site` | | Every comment on the site, sorted by page then number. Function 1.1 and later. |
+| POST | `/comments` | `{ page, path, title, anchor, author, text }` | Returns the comment with its number. `path` is the real pathname, used for links back; only same-site paths are kept. |
 | PATCH | `/comments/:id` | `{ page, resolved?, reply?, text?, deleteReply? }` | `text` and `deleteReply` need the owner token or admin key. |
 | DELETE | `/comments/:id?page=/path` | | Owner token or admin key. |
 | GET | `/export` | | Admin key. Everything on the site, grouped by page. |
@@ -185,6 +188,14 @@ Limits: 2000 characters per comment or reply, 60 for a name, 30 writes per IP pe
 | `TACK_ADMIN_KEY` | yes, for admin routes | Delete anything, export everything. |
 | `TACK_ORIGINS` | no | Comma-separated extra origins allowed to call the API. Only needed if the embed runs on a different site than the function. |
 
+## Updating a prototype
+
+The drawer updates on its own, because pages load it from the Tack site. The function is pinned by the package, so features that need a newer function say so in the drawer. To update it, run this in the prototype and redeploy:
+
+```bash
+npm install github:VERB-Design/VERB-Tack
+```
+
 ## Local development
 
 ```bash
@@ -193,6 +204,17 @@ npx netlify-cli dev
 ```
 
 Then open http://localhost:8888/demo.html. Netlify Dev provides a local Blobs store, so comments persist between reloads on your machine.
+
+Without the Netlify CLI, `npm run dev:mock` serves the demo at http://localhost:8787/demo.html with the real function and in-memory storage.
+
+## Tests
+
+```bash
+npm test                                  # the function, against an in-memory Blobs mock
+npm install --no-save playwright-core     # once
+npm run test:browser                      # the drawer, in your installed Chrome
+npm run test:browser -- site              # one suite: core, site or resilience
+```
 
 ## Cost
 

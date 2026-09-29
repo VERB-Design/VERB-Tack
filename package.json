@@ -1,6 +1,6 @@
 {
   "name": "verb-tack",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Figma-style comments on live prototypes. One script tag, one Netlify Function, comments stored in Netlify Blobs.",
   "type": "module",
   "license": "MIT",
@@ -30,7 +30,8 @@
   "scripts": {
     "dev": "npx netlify-cli dev",
     "dev:mock": "node --import ./test/register.mjs test/dev-server.mjs",
-    "test": "node --import ./test/register.mjs --test test/tack.test.mjs"
+    "test": "node --import ./test/register.mjs --test test/tack.test.mjs",
+    "test:browser": "node test/browser/run.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^11.0.0"

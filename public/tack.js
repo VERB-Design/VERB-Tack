@@ -10,6 +10,10 @@
      data-page="/custom/key"   override the page identity (default: pathname)
      data-open="true"          start with the drawer open
 
+   The drawer lists this page's comments or, with "All pages", every comment
+   on the site grouped by page. Clicking one on another page goes there and
+   opens it. A link ending in #tack=<id> does the same.
+
    On screens wider than 640px the open drawer docks and pushes the page
    left by 360px so nothing is hidden behind it. On phones it overlays.
 
@@ -49,8 +53,12 @@
     pending: null,                              // { anchor } while composing
     activeId: null,
     loading: true,
-    error: null
+    error: null,
+    scope: "page",                              // page | site
+    site: null,                                 // every comment on the site, once loaded
+    siteError: null
   };
+  var SS_FOCUS = "tack.focus";
 
   /* ---------- utils ---------- */
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
@@ -123,6 +131,20 @@
     });
   }
 
+  function loadSite() {
+    return api("/comments?scope=site").then(function (list) {
+      state.site = list || [];
+      state.siteError = null;
+      renderAll();
+    }).catch(function (err) {
+      state.siteError = /page is required/.test(err.message)
+        ? "This site runs an older Tack function that can’t list all pages. Update the verb-tack package and redeploy."
+        : (err.message || "Could not load the other pages.");
+      renderAll();
+    });
+  }
+  function syncSite() { if (state.site || state.scope === "site") loadSite(); }
+
   /* ---------- fonts (best effort) ---------- */
   var fl = document.createElement("link");
   fl.rel = "stylesheet";
@@ -189,6 +211,13 @@
     ".seg button:hover{color:#fff}",
     ".seg button[aria-selected=true]{background:#fff;color:#000}",
     ".seg .c{font-size:10px;font-weight:600;color:inherit;opacity:.7;letter-spacing:0}",
+    ".grp{display:flex;align-items:baseline;gap:8px;padding:16px 12px 6px;margin-top:6px;border-top:1px solid var(--line)}",
+    ".grp:first-child{border-top:0;margin-top:0;padding-top:8px}",
+    ".grp .gp{font-size:12px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}",
+    ".grp .gt{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}",
+    ".grp .gc{font-size:11px;color:var(--muted)}",
+    ".item.remote .go{color:var(--teal2);font-weight:600}",
+    ".item.remote:hover .go{text-decoration:underline}",
     ".btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.08em;border:1px solid var(--line2);background:transparent;color:#fff;position:relative;z-index:1;overflow:hidden;transition:color .2s,border-color .2s}",
     ".btn:before{content:'';position:absolute;inset:0;z-index:-1;background:var(--teal);transform:translateX(-101%);transition:transform .25s ease}",
     ".btn:hover{border-color:var(--teal)}",
@@ -246,7 +275,8 @@
     ".acts button{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;color:var(--muted);text-align:center;padding:6px 8px}",
     ".acts button:hover{color:#fff}",
     ".acts .rs:hover{color:var(--teal2)}",
-    ".acts .dl{border-left:1px solid var(--line)}",
+    ".acts .ln,.acts .dl{border-left:1px solid var(--line)}",
+    ".acts .ln:hover{color:var(--teal2)}",
     ".acts .dl:hover{color:var(--pink)}",
     ".empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;line-height:1.6}",
     ".empty .dpin{width:32px;height:32px;border-radius:50%;background:var(--teal);color:#fff;border:2px solid #fff;font-weight:600;line-height:1;padding-bottom:1px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}",
@@ -273,7 +303,11 @@
     '      <button class="x" id="dClose" aria-label="Hide comments" title="Hide comments (C)">&times;</button>' +
     '    </header>' +
     '    <div class="d-tools">' +
-    '      <div class="seg" role="tablist" aria-label="Filter comments">' +
+    '      <div class="seg scope" role="tablist" aria-label="Which pages to list">' +
+    '        <button role="tab" data-scope="page">This page</button>' +
+    '        <button role="tab" data-scope="site">All pages <span class="c" id="nSite" hidden></span></button>' +
+    '      </div>' +
+    '      <div class="seg filter" role="tablist" aria-label="Filter comments">' +
     '        <button role="tab" data-filter="open">Ongoing <span class="c" id="nOpen">0</span></button>' +
     '        <button role="tab" data-filter="resolved">Resolved <span class="c" id="nResolved">0</span></button>' +
     '        <button role="tab" data-filter="all">All <span class="c" id="nAll">0</span></button>' +
@@ -347,6 +381,16 @@
       if (state.filter === "resolved") return c.resolved;
       return true;
     }).sort(function (a, b) { return a.n - b.n; });
+  }
+  function matches(c) {
+    if (state.filter === "open") return !c.resolved;
+    if (state.filter === "resolved") return c.resolved;
+    return true;
+  }
+  /* Site list with this page's entries swapped for the live ones, so edits show at once. */
+  function mergedSite() {
+    if (!state.site) return state.comments.slice();
+    return state.site.filter(function (c) { return c.page !== PAGE; }).concat(state.comments);
   }
   function nextN() { return state.comments.reduce(function (m, c) { return Math.max(m, c.n); }, 0) + 1; }
   function find(id) { for (var i = 0; i < state.comments.length; i++) if (state.comments[i].id === id) return state.comments[i]; return null; }
@@ -430,18 +474,72 @@
     applyPush();
     if (!state.open) { setPlacing(false); cancelCompose(); }
     renderAll();
-    if (state.open) load(true);
+    if (state.open) { load(true); loadSite(); }
   }
   $("#pill").addEventListener("click", function () { setOpen(true); });
   $("#dClose").addEventListener("click", function () { setOpen(false); });
 
-  Array.prototype.forEach.call(root.querySelectorAll(".seg button"), function (b) {
+  Array.prototype.forEach.call(root.querySelectorAll(".seg.filter button"), function (b) {
     b.addEventListener("click", function () {
       state.filter = b.dataset.filter;
       lsSet(LS.filter, state.filter);
       renderAll();
     });
   });
+  Array.prototype.forEach.call(root.querySelectorAll(".seg.scope button"), function (b) {
+    b.addEventListener("click", function () {
+      state.scope = b.dataset.scope;
+      if (state.scope === "site") { cancelCompose(); setPlacing(false); loadSite(); }
+      renderAll();
+    });
+  });
+
+  /* ---------- going to a comment ---------- */
+  function goTo(c) {
+    var path = c.path || c.page;
+    if (typeof path !== "string" || path.charAt(0) !== "/" || path.charAt(1) === "/") return;
+    if (c.page === PAGE) { focusComment(c.id); return; }
+    try { sessionStorage.setItem(SS_FOCUS, c.id); } catch (e) { /* fall back to the hash */ }
+    lsSet(LS.drawer, "1");
+    location.assign(path + "#tack=" + encodeURIComponent(c.id));
+  }
+  function linkTo(c) {
+    return location.origin + (c.path || c.page) + "#tack=" + encodeURIComponent(c.id);
+  }
+  function pendingFocus() {
+    var m = /[#&]tack=([\w-]+)/.exec(location.hash || "");
+    var id = m ? m[1] : null;
+    try { id = id || sessionStorage.getItem(SS_FOCUS); sessionStorage.removeItem(SS_FOCUS); } catch (e) { /* no storage */ }
+    if (m && history.replaceState) {
+      try { history.replaceState(history.state, "", location.pathname + location.search); } catch (e) { /* leave the hash */ }
+    }
+    return id;
+  }
+  /* Open the drawer on one comment and bring its pin into view. Frameworks may
+     still be rendering the page, so keep trying for a few seconds. */
+  function focusComment(id, tries) {
+    var c = find(id);
+    if (!c) return false;
+    tries = tries || 0;
+    if (!tries) {
+      state.scope = "page";
+      if (!matches(c)) { state.filter = "all"; lsSet(LS.filter, "all"); }
+      state.activeId = id;
+      if (!state.open) setOpen(true); else renderAll();
+    }
+    var pos = docPos(c.anchor);
+    if (pos) {
+      renderPins();
+      window.scrollTo({ top: Math.max(0, pos.y - window.innerHeight / 2), behavior: "smooth" });
+      var row = listBox.querySelector('[data-id="' + id + '"]');
+      if (row) row.scrollIntoView({ block: "nearest" });
+      var pin = pinsBox.querySelector('.pin[data-id="' + id + '"]');
+      if (pin) pin.classList.add("pop");
+    } else if (tries < 15) {
+      setTimeout(function () { focusComment(id, tries + 1); }, 200);
+    }
+    return true;
+  }
 
   /* ---------- placing ---------- */
   function setPlacing(on) {
@@ -454,8 +552,10 @@
     $("#drawer").classList.toggle("peek", state.placing && window.innerWidth <= 640);
   }
   $("#newBtn").addEventListener("click", function () {
+    state.scope = "page";                       // new comments always belong to this page
     if (state.pending) cancelCompose();
     setPlacing(!state.placing);
+    renderAll();
   });
 
   $("#capture").addEventListener("click", function (e) {
@@ -496,7 +596,7 @@
     if (!text) { ta.focus(); return; }
     lsSet(LS.name, name);
     btn.disabled = true; btn.textContent = "Posting…";
-    api("/comments", { method: "POST", body: { page: PAGE, anchor: state.pending.anchor, author: name, text: text } })
+    api("/comments", { method: "POST", body: { page: PAGE, path: location.pathname, title: document.title, anchor: state.pending.anchor, author: name, text: text } })
       .then(function (c) {
         state.pending = null;
         state.comments.push(c);
@@ -506,6 +606,7 @@
         var pin = pinsBox.querySelector('.pin[data-id="' + c.id + '"]');
         if (pin) pin.classList.add("pop");
         toast("Comment " + c.n + " posted");
+        syncSite();
       })
       .catch(function (err) {
         btn.disabled = false; btn.textContent = "Post comment";
@@ -515,16 +616,25 @@
 
   /* ---------- list ---------- */
   function renderList() {
+    var siteMode = state.scope === "site";
     var all = state.comments;
-    var nOpen = all.filter(function (c) { return !c.resolved; }).length;
+    var isOpen = function (c) { return !c.resolved; };
+    var pageOpen = all.filter(isOpen).length;
+    var shown = siteMode ? mergedSite() : all;       // what the counts and the list describe
+    var nOpen = shown.filter(isOpen).length;
     $("#nOpen").textContent = nOpen;
-    $("#nResolved").textContent = all.length - nOpen;
-    $("#nAll").textContent = all.length;
-    $("#pillCnt").textContent = nOpen;
-    $("#pillCnt").classList.toggle("hot", nOpen > 0);
-    $("#dCount").textContent = all.length ? nOpen + " ongoing · " + all.length + " total" : "";
-    Array.prototype.forEach.call(root.querySelectorAll(".seg button"), function (b) {
+    $("#nResolved").textContent = shown.length - nOpen;
+    $("#nAll").textContent = shown.length;
+    $("#pillCnt").textContent = pageOpen;            // the pill always speaks for this page
+    $("#pillCnt").classList.toggle("hot", pageOpen > 0);
+    $("#dCount").textContent = shown.length ? nOpen + " ongoing · " + shown.length + " total" : "";
+    $("#nSite").hidden = !state.site;
+    $("#nSite").textContent = state.site ? mergedSite().filter(isOpen).length : "";
+    Array.prototype.forEach.call(root.querySelectorAll(".seg.filter button"), function (b) {
       b.setAttribute("aria-selected", b.dataset.filter === state.filter);
+    });
+    Array.prototype.forEach.call(root.querySelectorAll(".seg.scope button"), function (b) {
+      b.setAttribute("aria-selected", b.dataset.scope === state.scope);
     });
     var notice = $("#dNotice");
     notice.hidden = !state.error;
@@ -553,6 +663,8 @@
       listBox.appendChild(comp);
     }
 
+    if (siteMode) { renderSite(); return; }
+
     var cs = visible();
     if (!cs.length && !state.pending) {
       var empty = document.createElement("div");
@@ -565,12 +677,52 @@
       return;
     }
 
-    cs.forEach(function (c) {
-      var active = state.activeId === c.id;
+    cs.forEach(function (c) { listBox.appendChild(buildRow(c, false)); });
+  }
+
+  /* Every comment on the site, grouped by page, this page first. */
+  function renderSite() {
+    function note(html) {
+      var e = document.createElement("div"); e.className = "empty"; e.innerHTML = html; listBox.appendChild(e);
+    }
+    if (state.siteError) { note(esc(state.siteError)); return; }
+    if (!state.site) { note("Loading all pages…"); return; }
+    var list = mergedSite().filter(matches);
+    if (!list.length) {
+      note(mergedSite().length
+        ? "Nothing " + (state.filter === "resolved" ? "resolved" : "ongoing") + " on any page.<br>Switch the filter to see the rest."
+        : '<div class="dpin">1</div>No comments anywhere on this site yet.');
+      return;
+    }
+    var groups = {}, order = [];
+    list.forEach(function (c) {
+      if (!groups[c.page]) { groups[c.page] = { page: c.page, title: "", items: [] }; order.push(c.page); }
+      groups[c.page].items.push(c);
+      if (c.title && !groups[c.page].title) groups[c.page].title = c.title;
+    });
+    order.sort(function (a, b) { return a === PAGE ? -1 : b === PAGE ? 1 : a < b ? -1 : a > b ? 1 : 0; });
+    order.forEach(function (key) {
+      var g = groups[key], here = key === PAGE;
+      var h = document.createElement("div");
+      h.className = "grp" + (here ? " here" : "");
+      h.innerHTML = '<span class="gp" title="' + esc(g.page) + '">' + esc(g.page) + '</span>' +
+        (here ? '<span class="tag you">this page</span>' : "") +
+        '<span class="gt">' + (g.title && !here ? esc(g.title) : "") + '</span>' +
+        '<span class="gc">' + g.items.length + '</span>';
+      listBox.appendChild(h);
+      g.items.sort(function (a, b) { return a.n - b.n; }).forEach(function (c) {
+        listBox.appendChild(buildRow(c, !here));
+      });
+    });
+  }
+
+  /* One drawer row. Rows for other pages are summaries that navigate on click. */
+  function buildRow(c, remote) {
+      var active = !remote && state.activeId === c.id;
       var el = document.createElement("article");
-      el.className = "item" + (c.resolved ? " resolved" : "") + (active ? " active" : "");
+      el.className = "item" + (c.resolved ? " resolved" : "") + (active ? " active" : "") + (remote ? " remote" : "");
       el.dataset.id = c.id;
-      var hidden = !docPos(c.anchor);
+      var hidden = !remote && !docPos(c.anchor);
       var html =
         '<span class="n' + (c.resolved ? " done" : "") + '">' + c.n + '</span>' +
         '<div class="body">' +
@@ -585,6 +737,7 @@
         var bits = [];
         if (c.replies.length) bits.push(pluralize(c.replies.length, "reply"));
         if (c.resolved) bits.push('<span class="ok">Resolved' + (c.resolvedBy ? " by " + esc(c.resolvedBy) : "") + '</span>');
+        if (remote) bits.push('<span class="go">Go to page &rarr;</span>');
         if (bits.length) html += '<div class="meta">' + bits.join(" · ") + '</div>';
       } else {
         if (c.resolved) html += '<div class="meta"><span class="ok">&#10004; Resolved' + (c.resolvedBy ? " by " + esc(c.resolvedBy) : "") + (c.resolvedAt ? " · " + relTime(c.resolvedAt) : "") + '</span></div>';
@@ -603,6 +756,7 @@
           '<div class="row-end"><button class="btn sm primary rSend">Reply</button></div></div>';
         html += '<div class="acts">' +
           '<button class="rs">' + (c.resolved ? "Reopen" : "Resolve") + '</button>' +
+          '<button class="ln">Copy link</button>' +
           (c.canDelete ? '<button class="dl">Delete</button>' : "") +
           '</div>';
       }
@@ -610,6 +764,7 @@
       el.innerHTML = html;
 
       el.addEventListener("click", function (e) {
+        if (remote) { goTo(c); return; }
         if (e.target.closest("button, textarea, input, .replybox")) return;
         state.activeId = active ? null : c.id;
         renderAll();
@@ -621,6 +776,7 @@
 
       if (active) {
         el.querySelector(".rs").addEventListener("click", function () { toggleResolved(c); });
+        el.querySelector(".ln").addEventListener("click", function () { copyText(linkTo(c), "Link to comment " + c.n + " copied"); });
         var dl = el.querySelector(".dl");
         if (dl) dl.addEventListener("click", function () { removeComment(c); });
         var send = el.querySelector(".rSend");
@@ -632,13 +788,12 @@
           b.addEventListener("click", function () {
             var rid = b.closest(".reply").dataset.rid;
             api("/comments/" + c.id, { method: "PATCH", body: { page: PAGE, deleteReply: rid } })
-              .then(function (u) { replace(u); renderAll(); })
+              .then(function (u) { replace(u); renderAll(); syncSite(); })
               .catch(function (err) { toast(err.message); });
           });
         });
       }
-      listBox.appendChild(el);
-    });
+      return el;
   }
 
   function replace(updated) {
@@ -650,7 +805,7 @@
     var was = c.resolved;
     c.resolved = !was; renderAll();
     api("/comments/" + c.id, { method: "PATCH", body: { page: PAGE, resolved: !was, author: getName() || "Guest" } })
-      .then(function (u) { replace(u); renderAll(); toast(was ? "Comment " + c.n + " reopened" : "Comment " + c.n + " resolved"); })
+      .then(function (u) { replace(u); renderAll(); syncSite(); toast(was ? "Comment " + c.n + " reopened" : "Comment " + c.n + " resolved"); })
       .catch(function (err) { c.resolved = was; renderAll(); toast(err.message); });
   }
 
@@ -660,7 +815,7 @@
       .then(function () {
         state.comments = state.comments.filter(function (x) { return x.id !== c.id; });
         if (state.activeId === c.id) state.activeId = null;
-        renderAll(); toast("Comment " + c.n + " deleted");
+        renderAll(); syncSite(); toast("Comment " + c.n + " deleted");
       })
       .catch(function (err) { toast(err.message); });
   }
@@ -673,24 +828,42 @@
     lsSet(LS.name, name);
     btn.disabled = true;
     api("/comments/" + c.id, { method: "PATCH", body: { page: PAGE, reply: { author: name, text: text } } })
-      .then(function (u) { replace(u); renderAll(); })
+      .then(function (u) { replace(u); renderAll(); syncSite(); })
       .catch(function (err) { btn.disabled = false; toast(err.message); });
   }
 
   /* ---------- summary ---------- */
-  $("#copyBtn").addEventListener("click", function () {
-    var lines = ["# Tack comments — " + document.title, "URL: " + location.href, ""];
-    state.comments.slice().sort(function (a, b) { return a.n - b.n; }).forEach(function (c) {
-      lines.push(c.n + ". [" + (c.resolved ? "resolved" : "ongoing") + "] " + c.author + ": " + c.text);
-      c.replies.forEach(function (r) { lines.push("     ↳ " + r.author + ": " + r.text); });
-    });
-    if (!state.comments.length) lines.push("(no comments)");
-    var text = lines.join("\n");
+  function copyText(text, done) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { toast("Summary copied"); }, function () { window.prompt("Copy the summary:", text); });
+      navigator.clipboard.writeText(text).then(function () { toast(done); }, function () { window.prompt("Copy:", text); });
     } else {
-      window.prompt("Copy the summary:", text);
+      window.prompt("Copy:", text);
     }
+  }
+  function summaryLines(list) {
+    var out = [];
+    list.slice().sort(function (a, b) { return a.n - b.n; }).forEach(function (c) {
+      out.push(c.n + ". [" + (c.resolved ? "resolved" : "ongoing") + "] " + c.author + ": " + c.text);
+      c.replies.forEach(function (r) { out.push("     ↳ " + r.author + ": " + r.text); });
+    });
+    return out;
+  }
+  $("#copyBtn").addEventListener("click", function () {
+    var lines;
+    if (state.scope === "site" && state.site) {
+      lines = ["# Tack comments — " + location.host + " (all pages)", ""];
+      var all = mergedSite(), pages = [];
+      all.forEach(function (c) { if (pages.indexOf(c.page) === -1) pages.push(c.page); });
+      pages.sort().forEach(function (pg) {
+        lines.push("## " + pg, location.origin + pg);
+        lines = lines.concat(summaryLines(all.filter(function (c) { return c.page === pg; })), [""]);
+      });
+      if (!all.length) lines.push("(no comments)");
+    } else {
+      lines = ["# Tack comments — " + document.title, "URL: " + location.href, ""].concat(summaryLines(state.comments));
+      if (!state.comments.length) lines.push("(no comments)");
+    }
+    copyText(lines.join("\n"), "Summary copied");
   });
 
   /* ---------- keyboard ---------- */
@@ -742,7 +915,10 @@
 
   /* ---------- polling ---------- */
   setInterval(function () {
-    if (state.open && document.visibilityState === "visible" && !state.pending) load(true);
+    if (state.open && document.visibilityState === "visible" && !state.pending) {
+      load(true);
+      if (state.scope === "site") loadSite();
+    }
   }, POLL_MS);
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "visible" && state.open) load(true);
@@ -755,5 +931,13 @@
   $("#pill").setAttribute("aria-expanded", state.open);
   applyPush();
   renderAll();
-  load(!state.open);
+  var focusId = pendingFocus();
+  load(!state.open).then(function () {
+    if (focusId && !focusComment(focusId)) toast("That comment is no longer on this page");
+    else if (state.open) loadSite();
+  });
+  window.addEventListener("hashchange", function () {
+    var id = pendingFocus();
+    if (id) load(true).then(function () { focusComment(id); });
+  });
 })();

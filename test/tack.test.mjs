@@ -196,3 +196,28 @@ test("routes work behind a rewrite to /.netlify/functions/tack", async () => {
   res = await call("GET", "/api/tack/comments?page=/app/library");
   assert.equal((await json(res)).length, 1);
 });
+
+test("scope=site lists every page and stores a safe path and title", async () => {
+  __reset();
+  await call("POST", "/api/tack/comments", { body: { page: "/rooms", path: "/rooms/index.html", title: "Rooms", anchor, author: "A", text: "one" }, token: "tA" });
+  await call("POST", "/api/tack/comments", { body: { page: "/", path: "/", title: "Home", anchor, author: "B", text: "two" }, token: "tB" });
+  await call("POST", "/api/tack/comments", { body: { page: "/rooms", path: "//evil.example/x", anchor, author: "A", text: "three" }, token: "tA" });
+  await call("POST", "/api/tack/comments", { body: { page: "/dining", path: "https://evil.example/", anchor, author: "A", text: "four" }, token: "tA" });
+
+  const res = await call("GET", "/api/tack/comments?scope=site", { token: "tA" });
+  assert.equal(res.status, 200);
+  const all = await json(res);
+  assert.deepEqual(all.map((c) => c.page + "#" + c.n), ["/#1", "/dining#1", "/rooms#1", "/rooms#2"]);
+  const byText = Object.fromEntries(all.map((c) => [c.text, c]));
+  assert.equal(byText.one.path, "/rooms/index.html");
+  assert.equal(byText.one.title, "Rooms");
+  assert.equal(byText.three.path, "/rooms");        // protocol-relative path rejected, falls back to the page key
+  assert.equal(byText.four.path, "/dining");        // absolute URL rejected
+  assert.equal(byText.one.mine, true);
+  assert.equal(byText.two.mine, false);
+  assert.equal("ownerHash" in byText.one, false);
+
+  // works behind the rewrite and without a token
+  const res2 = await call("GET", "/.netlify/functions/tack/comments?scope=site");
+  assert.equal((await json(res2)).length, 4);
+});
