@@ -150,6 +150,10 @@ async function site() {
     await post(t, "Home: tighten the headline", ".hero h1", { name: "Michael" });
     await page.goto(base + "/demo-rooms.html", { waitUntil: "networkidle" }); await page.waitForTimeout(500);
     check("drawer stays open across pages", await drawerOpen($));
+    // the same page reached without its extension is the same thread
+    await page.evaluate(() => history.replaceState({}, "", "/demo-rooms")); await page.waitForTimeout(400);
+    check("/demo-rooms and /demo-rooms.html are one page", (await $("#dPage").textContent()) === "/demo-rooms");
+    await page.evaluate(() => history.replaceState({}, "", "/demo-rooms.html")); await page.waitForTimeout(300);
     await post(t, "Rooms: button label is vague", ".hero button");
     await post(t, "Rooms: card copy too long", ".card h3");
     await $(".item").nth(1).click(); await page.waitForTimeout(200);
@@ -157,7 +161,7 @@ async function site() {
 
     await $('[data-scope="site"]').click(); await page.waitForTimeout(800);
     const groups = await $(".grp .gp").allTextContents();
-    check("groups list this page first", JSON.stringify(groups) === JSON.stringify(["/demo-rooms.html", "/demo.html"]), groups.join(", "));
+    check("groups list this page first", JSON.stringify(groups) === JSON.stringify(["/demo-rooms", "/demo"]), groups.join(", "));
     check("All pages tab shows the site's ongoing count", (await $("#nSite").textContent()) === "2");
     check("header counts describe the whole site", /2 ongoing · 3 total/.test(await $("#dCount").textContent()));
     check("pill still counts this page only", (await $("#pillCnt").textContent()) === "1");
@@ -219,7 +223,7 @@ async function site() {
     await $('[data-scope="site"]').click(); await page.waitForTimeout(600);
     check("All pages still lists the site from a new route", (await $(".item").count()) >= 2 && (await $(".grp.here").count()) === 0);
     await page.goBack(); await page.waitForTimeout(700);
-    check("back restores the previous page as This page", (await $(".grp.here .gp").textContent()) === "/demo.html");
+    check("back restores the previous page as This page", (await $(".grp.here .gp").textContent()) === "/demo");
   });
 }
 
@@ -261,7 +265,7 @@ async function screens() {
     await page.goto(base + "/demo-kiosk.html", { waitUntil: "networkidle" });
     await page.keyboard.press("c"); await page.waitForTimeout(400);
     check("tab reads This screen", (await $('[data-scope="page"]').textContent()) === "This screen");
-    check("footer names the screen", (await $("#dPage").textContent()) === "/demo-kiosk.html › Destination");
+    check("footer names the screen", (await $("#dPage").textContent()) === "/demo-kiosk › Destination");
 
     await post(t, "Destination: heading too long", "#kiosk h1", { name: "Michael" });
     check("comment 1 pinned on Destination", (await $(".pin").count()) === 1 && (await $(".item").count()) === 1);
@@ -277,7 +281,7 @@ async function screens() {
 
     await $('[data-scope="site"]').click(); await page.waitForTimeout(700);
     const heads = await $(".grp").evaluateAll((g) => g.map((x) => x.querySelector(".gp").textContent + " " + (x.querySelector(".gs") ? x.querySelector(".gs").textContent : "")));
-    check("All pages groups by screen, this one first", heads[0] === "/demo-kiosk.html › Trip type" && heads[1] === "/demo-kiosk.html › Destination", heads.join(" | "));
+    check("All pages groups by screen, this one first", heads[0] === "/demo-kiosk › Trip type" && heads[1] === "/demo-kiosk › Destination", heads.join(" | "));
     check("the other screen's row offers Go to screen", /Go to screen/.test(await $(".item.remote .go").textContent()));
     await page.screenshot({ path: resolve(shots, "screens-all.png") });
 

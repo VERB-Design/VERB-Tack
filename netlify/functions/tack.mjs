@@ -22,7 +22,7 @@
 
 import { getStore } from "@netlify/blobs";
 
-export const VERSION = "1.2.0";
+export const VERSION = "1.2.1";
 
 export const config = { path: "/api/tack/*" };
 
@@ -221,6 +221,8 @@ export function normalizePage(p) {
   if (!s.startsWith("/")) s = "/" + s;
   s = s.replace(/\/index\.html?$/i, "/");
   if (s.length > 1) s = s.replace(/\/+$/, "");
+  // /about and /about.html are one page on hosts with pretty URLs.
+  s = s.replace(/\.html?$/i, "") || "/";
   return s.slice(0, 500);
 }
 

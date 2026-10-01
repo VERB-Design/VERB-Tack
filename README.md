@@ -118,7 +118,7 @@ Run the copy again after bumping the package.
 - **Copy summary** puts a plain-text list of the comments on the clipboard: this page, or all pages when that view is showing.
 - **Esc** cancels placing. **Cmd/Ctrl+Enter** posts.
 
-Comments anchor to the element under the click plus an offset inside it, so they follow the layout through responsive reflow. If the element is hidden at the current width, or has been replaced by something else, the row says "not on screen" and the pin hides with it.
+A page is identified by its path, and `/about`, `/about/`, `/about.html` and `/about/index.html` all count as the same page. Comments anchor to the element under the click plus an offset inside it, so they follow the layout through responsive reflow. If the element is hidden at the current width, or has been replaced by something else, the row says "not on screen" and the pin hides with it.
 
 ## Prototypes with several screens on one address
 
@@ -234,7 +234,7 @@ npx netlify-cli dev
 
 Then open http://localhost:8888/demo.html. Netlify Dev provides a local Blobs store, so comments persist between reloads on your machine.
 
-Without the Netlify CLI, `npm run dev:mock` serves the demo at http://localhost:8787/demo.html with the real function and in-memory storage.
+Without the Netlify CLI, `npm run dev:mock` serves the demo at http://localhost:8787/demo.html with the real function and in-memory storage. Set `TACK_ROOT=/path/to/a/prototype` to serve that prototype instead.
 
 ## Tests
 

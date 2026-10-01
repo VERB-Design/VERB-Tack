@@ -3,16 +3,19 @@
    when the process exits. For persistent local Blobs use `netlify dev`.
 
      node --import ./test/register.mjs test/dev-server.mjs   → http://localhost:8787/demo.html
+     TACK_ROOT=/path/to/a/prototype  serves that folder instead of ./public
 */
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { extname, join, normalize, resolve as resolvePath } from "node:path";
 
 process.env.TACK_ADMIN_KEY ||= "dev-admin";
 const { default: handler } = await import("../netlify/functions/tack.mjs");
 
 const PORT = Number(process.env.PORT || 8787);
-const ROOT = new URL("../public/", import.meta.url).pathname;
+// TACK_ROOT lets you preview any prototype folder against the mock function:
+//   TACK_ROOT=~/path/to/prototype npm run dev:mock
+const ROOT = process.env.TACK_ROOT ? resolvePath(process.env.TACK_ROOT) + "/" : new URL("../public/", import.meta.url).pathname;
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml" };
 
 createServer(async (req, res) => {

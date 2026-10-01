@@ -96,6 +96,8 @@
     if (s.charAt(0) !== "/") s = "/" + s;
     s = s.replace(/\/index\.html?$/i, "/");
     if (s.length > 1) s = s.replace(/\/+$/, "");
+    // Hosts like Netlify serve /about and /about.html as the same page; so do we.
+    s = s.replace(/\.html?$/i, "") || "/";
     return s;
   }
   function getName() { return lsGet(LS.name) || ""; }

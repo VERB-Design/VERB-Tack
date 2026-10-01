@@ -29,6 +29,9 @@ test("normalizePage", () => {
   assert.equal(normalizePage("https://a.b/c/d/"), "/c/d");
   assert.equal(normalizePage("rooms"), "/rooms");
   assert.equal(normalizePage(""), "");
+  assert.equal(normalizePage("/version-2.html"), "/version-2");
+  assert.equal(normalizePage("/version-2"), "/version-2");
+  assert.equal(normalizePage("/a/b.HTM"), "/a/b");
 });
 
 test("health", async () => {
@@ -209,7 +212,7 @@ test("scope=site lists every page and stores a safe path and title", async () =>
   const all = await json(res);
   assert.deepEqual(all.map((c) => c.page + "#" + c.n), ["/#1", "/dining#1", "/rooms#1", "/rooms#2"]);
   const byText = Object.fromEntries(all.map((c) => [c.text, c]));
-  assert.equal(byText.one.path, "/rooms/index.html");
+  assert.equal(byText.one.path, "/rooms/index.html");   // the real path is kept for links
   assert.equal(byText.one.title, "Rooms");
   assert.equal(byText.three.path, "/rooms");        // protocol-relative path rejected, falls back to the page key
   assert.equal(byText.four.path, "/dining");        // absolute URL rejected
