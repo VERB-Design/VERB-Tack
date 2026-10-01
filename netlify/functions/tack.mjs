@@ -22,7 +22,7 @@
 
 import { getStore } from "@netlify/blobs";
 
-export const VERSION = "1.1.0";
+export const VERSION = "1.2.0";
 
 export const config = { path: "/api/tack/*" };
 
@@ -106,6 +106,7 @@ async function comments(req, url, id, admin, context) {
       page,
       path: cleanPath(body.path) || page,      // the real pathname, for links back to the page
       title: clean(body.title, 120),
+      screen: clean(body.screen, 80).replace(/\s+/g, " "),   // which state of the page, when the prototype names one
       anchor,
       author: clean(body.author, MAX_NAME) || "Guest",
       text,
@@ -252,6 +253,9 @@ function cleanAnchor(a) {
     out.sel = a.sel;
     out.ox = num(a.ox);
     out.oy = num(a.oy);
+    // What the element was, so a pin is not shown on whatever later takes its place.
+    if (typeof a.tag === "string") out.tag = clean(a.tag, 20).toLowerCase();
+    if (typeof a.txt === "string") out.txt = clean(a.txt, 80);
   }
   return out;
 }

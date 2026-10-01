@@ -118,7 +118,36 @@ Run the copy again after bumping the package.
 - **Copy summary** puts a plain-text list of the comments on the clipboard: this page, or all pages when that view is showing.
 - **Esc** cancels placing. **Cmd/Ctrl+Enter** posts.
 
-Comments anchor to the element under the click plus an offset inside it, so they follow the layout through responsive reflow. If the element is hidden at the current width, the row says so and the pin hides with it.
+Comments anchor to the element under the click plus an offset inside it, so they follow the layout through responsive reflow. If the element is hidden at the current width, or has been replaced by something else, the row says "not on screen" and the pin hides with it.
+
+## Prototypes with several screens on one address
+
+Kiosks, wizards and other state-driven prototypes redraw one page instead of changing the address. Tack files comments by address, so without help it would put every screen's comments in one thread, and a pin would sit on whatever replaced the element it was placed on.
+
+**Name the current screen** and Tack keeps a thread per screen. Put `data-tack-state` on any element, usually `<body>`, and update it when the screen changes:
+
+```js
+function go(screenName) {
+  render(screenName);
+  document.body.dataset.tackState = screenName;   // e.g. "Payment"
+}
+```
+
+The drawer's first tab then reads This screen, the footer shows the page and the screen, and All pages groups by both. Numbers run across the page, so "comment 4" means one thing per page. `window.Tack.setState(name)` does the same as setting the attribute.
+
+**Let Tack ask for a screen.** When someone opens a comment that lives on another screen, from All pages or from a copied link, Tack fires an event the prototype can act on:
+
+```js
+document.addEventListener("tack:goto", (e) => go(e.detail.state));
+```
+
+If the prototype cannot jump there, say because earlier steps are required, do nothing. Tack tells the reviewer which screen the comment is on and opens it when they reach it.
+
+**Without a name**, Tack still records what each pin was placed on, the element's tag and the start of its text. If something else later sits in that position, the pin hides and the row says "not on screen". Numbers and punctuation are ignored in that comparison, so a total or a counter can change without losing its pin.
+
+Comments made before a prototype named its screens stay visible on every screen of their page, labelled "screen not recorded". Delete or re-place them as you see fit.
+
+Storing the screen needs function 1.2 or later. The drawer says so if the site's function is older.
 
 ## Single-page apps and catch-all rewrites
 
@@ -171,7 +200,7 @@ All routes are under `/api/tack`. Bodies and responses are JSON.
 |---|---|---|---|
 | GET | `/comments?page=/path` | | Sorted by number. |
 | GET | `/comments?scope=site` | | Every comment on the site, sorted by page then number. Function 1.1 and later. |
-| POST | `/comments` | `{ page, path, title, anchor, author, text }` | Returns the comment with its number. `path` is the real pathname, used for links back; only same-site paths are kept. |
+| POST | `/comments` | `{ page, path, title, screen, anchor, author, text }` | Returns the comment with its number. `path` is the real pathname, used for links back; only same-site paths are kept. `screen` is the named state of the page, if any. Function 1.2 and later. |
 | PATCH | `/comments/:id` | `{ page, resolved?, reply?, text?, deleteReply? }` | `text` and `deleteReply` need the owner token or admin key. |
 | DELETE | `/comments/:id?page=/path` | | Owner token or admin key. |
 | GET | `/export` | | Admin key. Everything on the site, grouped by page. |
@@ -213,7 +242,7 @@ Without the Netlify CLI, `npm run dev:mock` serves the demo at http://localhost:
 npm test                                  # the function, against an in-memory Blobs mock
 npm install --no-save playwright-core     # once
 npm run test:browser                      # the drawer, in your installed Chrome
-npm run test:browser -- site              # one suite: core, site or resilience
+npm run test:browser -- site              # one suite: core, site, screens or resilience
 ```
 
 ## Cost

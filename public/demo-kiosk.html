@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Harbour Ferry kiosk — one page, several screens</title>
+<style>
+  *{margin:0;box-sizing:border-box}
+  body{font-family:Georgia,serif;color:#22303a;background:#eef2f4;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:28px 16px}
+  .note{font-family:Verdana,sans-serif;font-size:12px;color:#68747d;max-width:520px;text-align:center;line-height:1.6;margin-bottom:18px}
+  .note a{color:inherit}
+  #kiosk{width:100%;max-width:520px;background:#fff;border:1px solid #d8e0e4;border-radius:6px;padding:34px 32px 30px;box-shadow:0 12px 34px rgba(20,50,70,.08)}
+  header small{font-family:Verdana,sans-serif;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#1d6a80}
+  header h1{font-size:30px;font-weight:400;margin:8px 0 6px}
+  header p{font-family:Verdana,sans-serif;font-size:13px;color:#68747d;margin-bottom:22px}
+  .options{display:grid;gap:10px}
+  .options button{font:inherit;font-size:18px;text-align:left;padding:16px 18px;background:#f6f8f9;border:1px solid #d8e0e4;border-radius:4px;cursor:pointer}
+  .options button:hover{border-color:#1d6a80}
+  .total{font-size:24px;margin:6px 0 18px}
+  .actions{display:flex;justify-content:space-between;margin-top:22px}
+  .actions button{font-family:Verdana,sans-serif;font-size:13px;padding:11px 20px;border:1px solid #d8e0e4;background:#fff;border-radius:4px;cursor:pointer}
+  .actions .next{background:#f4b942;border-color:#f4b942}
+</style>
+</head>
+<body>
+<p class="note">A prototype that changes screens without changing its address, like a kiosk. It names the current screen in <code>data-tack-state</code>, so Tack keeps a thread per screen. <a href="?nostate=1">Try it without the name</a> · <a href="/demo.html">Back to the inn</a></p>
+<main id="kiosk" aria-live="polite"></main>
+
+<script>
+  /* Minimal stand-in for a state-driven prototype. Every screen is drawn into
+     the same container; the address never changes. */
+  var q = new URLSearchParams(location.search);
+  var NAMED = !q.has("nostate");     // set data-tack-state
+  var GUARD = q.has("guard");        // refuse to jump when Tack asks (like a flow with required steps)
+  var kiosk = document.getElementById("kiosk");
+  var booking = { destination: null, trip: null, bikes: 0 };
+  var screens = {
+    "Destination": function () {
+      return page("Step 1", "Where are you going?", "Foot passengers and bicycles only.",
+        '<div class="options">' + ["Lyness", "Flotta", "Longhope"].map(function (d) { return '<button data-dest="' + d + '">' + d + '</button>'; }).join("") + '</div>', "", "");
+    },
+    "Trip type": function () {
+      return page("Step 2", "One way or return?", "Houton to " + (booking.destination || "your destination") + ".",
+        '<div class="options"><button data-trip="Return">Return</button><button data-trip="One way">One way</button></div>', "Back", "");
+    },
+    "Payment": function () {
+      return page("Step 3", "Pay for your booking", "Your confirmation prints after payment.",
+        '<p class="total">Total £' + (12.4 + booking.bikes * 2.6).toFixed(2) + '</p><div class="options"><button data-bike>Add a bicycle</button></div>', "Back", "Pay by card");
+    }
+  };
+  var order = Object.keys(screens), current = order[0];
+
+  function page(kicker, title, desc, body, back, next) {
+    return '<section><header><small>' + kicker + '</small><h1>' + title + '</h1><p>' + desc + '</p></header>' + body +
+      '<div class="actions">' + (back ? '<button data-back>' + back + '</button>' : '<span></span>') + (next ? '<button class="next">' + next + '</button>' : '') + '</div></section>';
+  }
+  function go(name) {
+    if (!screens[name]) return;
+    current = name;
+    kiosk.innerHTML = screens[name]();
+    if (NAMED) document.body.setAttribute("data-tack-state", name);
+  }
+  kiosk.addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.dest) { booking.destination = b.dataset.dest; go("Trip type"); }
+    else if (b.dataset.trip) { booking.trip = b.dataset.trip; go("Payment"); }
+    else if ("bike" in b.dataset) { booking.bikes++; go("Payment"); }
+    else if ("back" in b.dataset) { go(order[Math.max(0, order.indexOf(current) - 1)]); }
+  });
+  /* Tack asks to see a comment on another screen. A real prototype may have
+     steps that must come first; this one can refuse, to show what happens. */
+  document.addEventListener("tack:goto", function (e) { if (!GUARD) go(e.detail.state); });
+  go(current);
+</script>
+<script src="/tack.js" defer></script>
+</body>
+</html>

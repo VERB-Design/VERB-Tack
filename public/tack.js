@@ -14,6 +14,14 @@
    on the site grouped by page. Clicking one on another page goes there and
    opens it. A link ending in #tack=<id> does the same.
 
+   Prototypes that change screens without changing the address can name the
+   current one, and comments are then kept per screen:
+     <body data-tack-state="Payment">        (any element; update it as the screen changes)
+   Tack fires a "tack:goto" event on document, with detail.state, when someone
+   opens a comment that lives on another screen, so the prototype can go there.
+   Without a name, a pin still hides when the element it was placed on has
+   been replaced by something else.
+
    On screens wider than 640px the open drawer docks and pushes the page
    left by 360px so nothing is hidden behind it. On phones it overlays.
 
@@ -59,6 +67,19 @@
     siteError: null
   };
   var SS_FOCUS = "tack.focus";
+
+  /* ---------- screens ---------- */
+  /* A page can hold several screens that share one address. The prototype
+     names the current one in data-tack-state; "" means it does not use them. */
+  function readScreen() {
+    var el = document.querySelector("[data-tack-state]");
+    return ((el && el.getAttribute("data-tack-state")) || "").replace(/\s+/g, " ").trim().slice(0, 80);
+  }
+  var SCREEN = readScreen();
+  var wanted = null;                              // comment waiting for the prototype to reach its screen
+  function scr(c) { return c.screen || ""; }
+  /* On this screen: filed under it, or filed under none (older comments stay visible everywhere). */
+  function onScreen(c) { return !scr(c) || scr(c) === SCREEN; }
 
   /* ---------- utils ---------- */
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
@@ -213,7 +234,8 @@
     ".seg .c{font-size:10px;font-weight:600;color:inherit;opacity:.7;letter-spacing:0}",
     ".grp{display:flex;align-items:baseline;gap:8px;padding:16px 12px 6px;margin-top:6px;border-top:1px solid var(--line)}",
     ".grp:first-child{border-top:0;margin-top:0;padding-top:8px}",
-    ".grp .gp{font-size:12px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}",
+    ".grp .gp{font-size:12px;font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:45%;flex:none}",
+    ".grp .gs{font-size:12px;font-weight:500;color:#fff;opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}",
     ".grp .gt{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}",
     ".grp .gc{font-size:11px;color:var(--muted)}",
     ".item.remote .go{color:var(--teal2);font-weight:600}",
@@ -328,8 +350,12 @@
   var $ = function (s) { return root.querySelector(s); };
   var pinsBox = $("#pins");
   var listBox = $("#dList");
-  $("#dPage").textContent = PAGE;
-  $("#dPage").title = "Comments are keyed to " + PAGE;
+  function showWhere() {
+    var where = PAGE + (SCREEN ? " › " + SCREEN : "");
+    $("#dPage").textContent = where;
+    $("#dPage").title = "Comments are filed under " + where;
+  }
+  showWhere();
 
   function toast(msg) {
     var t = $("#toast"); t.textContent = msg; t.classList.add("show");
@@ -355,6 +381,29 @@
     return parts.join(">");
   }
 
+  /* What an element was when the comment was made: its tag and the start of its
+     text. A selector alone says where, not what, and prototypes that redraw a
+     container put a different element in the same place. */
+  function sample(el) {
+    var t = (el.innerText != null ? el.innerText : el.textContent) || "";
+    return t.replace(/\s+/g, " ").trim().slice(0, 80);
+  }
+  function loose(t) { return String(t || "").toLowerCase().replace(/[\d\W_]+/g, " ").trim(); }
+  /* Deliberately forgiving: numbers and punctuation are ignored, so a total or
+     a counter can change. Only a clearly different element fails. */
+  function sameElement(a, el) {
+    if (a.tag && el.tagName.toLowerCase() !== a.tag) return false;
+    if (!a.txt) return true;
+    var was = loose(a.txt), now = loose(sample(el));
+    if (!was || was === now) return true;
+    if (!now) return false;
+    var lead = Math.min(was.length, now.length, 24);
+    if (lead >= 8 && was.slice(0, lead) === now.slice(0, lead)) return true;
+    var A = was.split(" "), B = now.split(" "), hit = 0;
+    A.forEach(function (w) { if (B.indexOf(w) !== -1) hit++; });
+    return hit / Math.max(A.length, B.length) >= 0.5;
+  }
+
   /* Anchored pins follow their element through responsive reflow. Returns
      null when the element is missing or hidden at this breakpoint. Falls
      back to page coordinates for comments with no usable selector. */
@@ -364,7 +413,7 @@
         var el = document.querySelector(a.sel);
         if (el && !host.contains(el)) {
           var r = el.getBoundingClientRect();
-          if (r.width || r.height) {
+          if ((r.width || r.height) && sameElement(a, el)) {
             return { x: r.left + window.scrollX + r.width * a.ox, y: r.top + window.scrollY + r.height * a.oy };
           }
         }
@@ -375,12 +424,9 @@
   }
 
   /* ---------- derived ---------- */
+  function here() { return state.comments.filter(onScreen); }
   function visible() {
-    return state.comments.filter(function (c) {
-      if (state.filter === "open") return !c.resolved;
-      if (state.filter === "resolved") return c.resolved;
-      return true;
-    }).sort(function (a, b) { return a.n - b.n; });
+    return here().filter(matches).sort(function (a, b) { return a.n - b.n; });
   }
   function matches(c) {
     if (state.filter === "open") return !c.resolved;
@@ -436,8 +482,21 @@
     }
   }
 
+  /* Keep each row's "not on screen" label true to what is on the page now,
+     without rebuilding the rows (someone may be typing a reply in one). */
+  function refreshRowTags() {
+    Array.prototype.forEach.call(listBox.querySelectorAll(".item:not(.remote)"), function (row) {
+      var c = find(row.dataset.id), who = row.querySelector(".who");
+      if (!c || !who) return;
+      var off = who.querySelector(".tag.off"), hidden = !docPos(c.anchor);
+      if (hidden && !off) {
+        off = document.createElement("span"); off.className = "tag off"; off.textContent = "not on screen";
+        who.appendChild(off);
+      } else if (!hidden && off) off.remove();
+    });
+  }
   var rz;
-  function schedule() { clearTimeout(rz); rz = setTimeout(renderPins, 120); }
+  function schedule() { clearTimeout(rz); rz = setTimeout(function () { renderPins(); refreshRowTags(); }, 120); }
   if (window.ResizeObserver) new ResizeObserver(schedule).observe(document.body);
   window.addEventListener("resize", schedule);
   window.addEventListener("load", schedule);
@@ -517,9 +576,27 @@
   }
   /* Open the drawer on one comment and bring its pin into view. Frameworks may
      still be rendering the page, so keep trying for a few seconds. */
+  /* The comment is on another screen of this page. Ask the prototype to go
+     there; if it does, the screen watcher finishes the job. If it cannot, say
+     where the comment lives and open it once the reviewer gets there. */
+  function requestScreen(c) {
+    wanted = c.id;
+    try {
+      document.dispatchEvent(new CustomEvent("tack:goto", { detail: { state: scr(c), id: c.id, page: c.page } }));
+    } catch (e) { /* very old browser */ }
+    setTimeout(function () {
+      onScreenChange();
+      if (wanted === c.id) {
+        if (!state.open) setOpen(true);
+        toast("Comment " + c.n + " is on the “" + scr(c) + "” screen");
+      }
+    }, 200);
+  }
   function focusComment(id, tries) {
     var c = find(id);
     if (!c) return false;
+    if (!onScreen(c)) { requestScreen(c); return true; }
+    wanted = null;
     tries = tries || 0;
     if (!tries) {
       state.scope = "page";
@@ -573,6 +650,8 @@
         anchor.sel = cssPath(target);
         anchor.ox = (e.clientX - r.left) / r.width;
         anchor.oy = (e.clientY - r.top) / r.height;
+        anchor.tag = target.tagName.toLowerCase();
+        anchor.txt = sample(target);
       }
     }
     state.pending = { anchor: anchor };
@@ -596,8 +675,9 @@
     if (!text) { ta.focus(); return; }
     lsSet(LS.name, name);
     btn.disabled = true; btn.textContent = "Posting…";
-    api("/comments", { method: "POST", body: { page: PAGE, path: location.pathname, title: document.title, anchor: state.pending.anchor, author: name, text: text } })
+    api("/comments", { method: "POST", body: { page: PAGE, path: location.pathname, title: document.title, screen: SCREEN, anchor: state.pending.anchor, author: name, text: text } })
       .then(function (c) {
+        if (SCREEN && !c.screen) state.oldFn = true;   // the site's function dropped the screen
         state.pending = null;
         state.comments.push(c);
         state.activeId = c.id;
@@ -617,7 +697,9 @@
   /* ---------- list ---------- */
   function renderList() {
     var siteMode = state.scope === "site";
-    var all = state.comments;
+    var all = here();                                // this page, or this screen of it
+    var pageTab = root.querySelector('.seg.scope [data-scope="page"]');
+    pageTab.textContent = SCREEN ? "This screen" : "This page";
     var isOpen = function (c) { return !c.resolved; };
     var pageOpen = all.filter(isOpen).length;
     var shown = siteMode ? mergedSite() : all;       // what the counts and the list describe
@@ -625,7 +707,7 @@
     $("#nOpen").textContent = nOpen;
     $("#nResolved").textContent = shown.length - nOpen;
     $("#nAll").textContent = shown.length;
-    $("#pillCnt").textContent = pageOpen;            // the pill always speaks for this page
+    $("#pillCnt").textContent = pageOpen;            // the pill always speaks for what is on screen
     $("#pillCnt").classList.toggle("hot", pageOpen > 0);
     $("#dCount").textContent = shown.length ? nOpen + " ongoing · " + shown.length + " total" : "";
     $("#nSite").hidden = !state.site;
@@ -637,8 +719,10 @@
       b.setAttribute("aria-selected", b.dataset.scope === state.scope);
     });
     var notice = $("#dNotice");
-    notice.hidden = !state.error;
-    notice.innerHTML = state.error ? esc(state.error) + ' <button class="retry" id="retryBtn">Retry</button>' : "";
+    var oldFn = !state.error && state.oldFn;
+    notice.hidden = !state.error && !oldFn;
+    notice.innerHTML = state.error ? esc(state.error) + ' <button class="retry" id="retryBtn">Retry</button>'
+      : oldFn ? "This site runs an older Tack function, so comments can’t be kept per screen yet. Update the verb-tack package and redeploy." : "";
     if (state.error) notice.querySelector("#retryBtn").addEventListener("click", function () {
       state.loading = true; state.error = null; renderAll(); load();
     });
@@ -671,8 +755,8 @@
       empty.className = "empty";
       if (state.loading) empty.textContent = "Loading comments…";
       else if (state.filter === "resolved") empty.innerHTML = "Nothing resolved yet.";
-      else if (state.filter === "open" && all.length) empty.innerHTML = "Every comment on this page is resolved.<br>Switch to <b>Resolved</b> or <b>All</b> to see them.";
-      else empty.innerHTML = '<div class="dpin">1</div>No comments on this page yet.<br>Press <b>New comment</b>, then click anywhere on the page.';
+      else if (state.filter === "open" && all.length) empty.innerHTML = "Every comment on this " + (SCREEN ? "screen" : "page") + " is resolved.<br>Switch to <b>Resolved</b> or <b>All</b> to see them.";
+      else empty.innerHTML = '<div class="dpin">1</div>No comments on this ' + (SCREEN ? "screen" : "page") + ' yet.<br>Press <b>New comment</b>, then click anywhere on the page.';
       listBox.appendChild(empty);
       return;
     }
@@ -696,22 +780,30 @@
     }
     var groups = {}, order = [];
     list.forEach(function (c) {
-      if (!groups[c.page]) { groups[c.page] = { page: c.page, title: "", items: [] }; order.push(c.page); }
-      groups[c.page].items.push(c);
-      if (c.title && !groups[c.page].title) groups[c.page].title = c.title;
+      var key = c.page + "\n" + scr(c);
+      if (!groups[key]) { groups[key] = { page: c.page, screen: scr(c), title: "", items: [] }; order.push(key); }
+      groups[key].items.push(c);
+      if (c.title && !groups[key].title) groups[key].title = c.title;
     });
-    order.sort(function (a, b) { return a === PAGE ? -1 : b === PAGE ? 1 : a < b ? -1 : a > b ? 1 : 0; });
+    var rank = function (k) {
+      var g = groups[k];
+      return g.page !== PAGE ? 2 : g.screen === SCREEN ? 0 : 1;      // here, then the rest of this page, then other pages
+    };
+    order.sort(function (a, b) { return rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0); });
     order.forEach(function (key) {
-      var g = groups[key], here = key === PAGE;
+      var g = groups[key], current = g.page === PAGE && g.screen === SCREEN;
+      var unfiled = g.page === PAGE && SCREEN && !g.screen;           // older comments, shown on every screen
       var h = document.createElement("div");
-      h.className = "grp" + (here ? " here" : "");
+      h.className = "grp" + (current ? " here" : "");
       h.innerHTML = '<span class="gp" title="' + esc(g.page) + '">' + esc(g.page) + '</span>' +
-        (here ? '<span class="tag you">this page</span>' : "") +
-        '<span class="gt">' + (g.title && !here ? esc(g.title) : "") + '</span>' +
+        (g.screen ? '<span class="gs" title="' + esc(g.screen) + '">› ' + esc(g.screen) + '</span>' : "") +
+        (unfiled ? '<span class="gs">› screen not recorded</span>' : "") +
+        (current ? '<span class="tag you">' + (SCREEN ? "this screen" : "this page") + '</span>' : "") +
+        '<span class="gt">' + (g.title && g.page !== PAGE ? esc(g.title) : "") + '</span>' +
         '<span class="gc">' + g.items.length + '</span>';
       listBox.appendChild(h);
       g.items.sort(function (a, b) { return a.n - b.n; }).forEach(function (c) {
-        listBox.appendChild(buildRow(c, !here));
+        listBox.appendChild(buildRow(c, !(c.page === PAGE && onScreen(c))));
       });
     });
   }
@@ -729,7 +821,8 @@
         '  <div class="who">' + esc(c.author) +
         (c.mine ? '<span class="tag you">you</span>' : "") +
         '<time datetime="' + esc(c.createdAt) + '">' + relTime(c.createdAt) + (c.editedAt ? " · edited" : "") + '</time>' +
-        (hidden ? '<span class="tag">hidden at this size</span>' : "") +
+        (hidden ? '<span class="tag off">not on screen</span>' : "") +
+        (!remote && SCREEN && !scr(c) && state.scope !== "site" ? '<span class="tag">screen not recorded</span>' : "") +
         '  </div>' +
         '  <div class="txt">' + esc(c.text) + '</div>';
 
@@ -737,7 +830,7 @@
         var bits = [];
         if (c.replies.length) bits.push(pluralize(c.replies.length, "reply"));
         if (c.resolved) bits.push('<span class="ok">Resolved' + (c.resolvedBy ? " by " + esc(c.resolvedBy) : "") + '</span>');
-        if (remote) bits.push('<span class="go">Go to page &rarr;</span>');
+        if (remote) bits.push('<span class="go">' + (c.page === PAGE ? "Go to screen" : "Go to page") + ' &rarr;</span>');
         if (bits.length) html += '<div class="meta">' + bits.join(" · ") + '</div>';
       } else {
         if (c.resolved) html += '<div class="meta"><span class="ok">&#10004; Resolved' + (c.resolvedBy ? " by " + esc(c.resolvedBy) : "") + (c.resolvedAt ? " · " + relTime(c.resolvedAt) : "") + '</span></div>';
@@ -852,16 +945,18 @@
     var lines;
     if (state.scope === "site" && state.site) {
       lines = ["# Tack comments — " + location.host + " (all pages)", ""];
-      var all = mergedSite(), pages = [];
-      all.forEach(function (c) { if (pages.indexOf(c.page) === -1) pages.push(c.page); });
-      pages.sort().forEach(function (pg) {
-        lines.push("## " + pg, location.origin + pg);
-        lines = lines.concat(summaryLines(all.filter(function (c) { return c.page === pg; })), [""]);
+      var all = mergedSite(), keys = [];
+      var keyOf = function (c) { return c.page + (scr(c) ? " › " + scr(c) : ""); };
+      all.forEach(function (c) { if (keys.indexOf(keyOf(c)) === -1) keys.push(keyOf(c)); });
+      keys.sort().forEach(function (k) {
+        var group = all.filter(function (c) { return keyOf(c) === k; });
+        lines.push("## " + k, location.origin + (group[0].path || group[0].page));
+        lines = lines.concat(summaryLines(group), [""]);
       });
       if (!all.length) lines.push("(no comments)");
     } else {
-      lines = ["# Tack comments — " + document.title, "URL: " + location.href, ""].concat(summaryLines(state.comments));
-      if (!state.comments.length) lines.push("(no comments)");
+      lines = ["# Tack comments — " + document.title + (SCREEN ? " › " + SCREEN : ""), "URL: " + location.href, ""].concat(summaryLines(here()));
+      if (!here().length) lines.push("(no comments)");
     }
     copyText(lines.join("\n"), "Summary copied");
   });
@@ -893,8 +988,8 @@
     var next = normalizePage(location.pathname);
     if (next === PAGE) return;
     PAGE = next;
-    $("#dPage").textContent = PAGE;
-    $("#dPage").title = "Comments are keyed to " + PAGE;
+    SCREEN = readScreen();
+    showWhere();
     state.comments = []; state.pending = null; state.activeId = null; state.loading = true;
     setPlacing(false);
     renderAll();
@@ -906,12 +1001,35 @@
     history[k] = function () { var r = orig.apply(this, arguments); setTimeout(onRouteChange, 0); return r; };
   });
   window.addEventListener("popstate", function () { setTimeout(onRouteChange, 0); });
+  /* The prototype moved to another screen of the same page: switch threads. */
+  function onScreenChange() {
+    var next = readScreen();
+    if (next === SCREEN) return;
+    SCREEN = next;
+    showWhere();
+    state.pending = null; state.activeId = null;
+    setPlacing(false);
+    renderAll();
+    if (wanted) {
+      var w = find(wanted);
+      if (w && onScreen(w)) focusComment(wanted);
+    }
+    if (state.open) load(true);
+  }
+  var screenTimer;
+  function screenSoon() { clearTimeout(screenTimer); screenTimer = setTimeout(onScreenChange, 0); }
   // Frameworks swap DOM without resizing the body; re-anchor pins when they do.
   if (window.MutationObserver) {
     new MutationObserver(function (muts) {
-      for (var i = 0; i < muts.length; i++) if (!host.contains(muts[i].target)) { schedule(); return; }
-    }).observe(document.body, { childList: true, subtree: true });
+      for (var i = 0; i < muts.length; i++) if (!host.contains(muts[i].target)) { schedule(); screenSoon(); return; }
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+    new MutationObserver(screenSoon).observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: ["data-tack-state"] });
   }
+  /* For prototypes that would rather call than set an attribute. */
+  window.Tack = {
+    setState: function (name) { document.body.setAttribute("data-tack-state", name == null ? "" : String(name)); },
+    refresh: function () { onScreenChange(); schedule(); }
+  };
 
   /* ---------- polling ---------- */
   setInterval(function () {

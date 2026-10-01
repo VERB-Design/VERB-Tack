@@ -2,7 +2,7 @@
 
      npm install --no-save playwright-core
      npm run test:browser              all suites
-     npm run test:browser -- site      one suite (core | site | resilience)
+     npm run test:browser -- site      one suite (core | site | screens | resilience)
 
    Each suite gets its own mock server with empty storage, so counts are exact. */
 import { spawn } from "node:child_process";
@@ -252,7 +252,101 @@ async function resilience() {
   });
 }
 
-const suites = { core, site, resilience };
+/* --------------------------------------------------------------- screens */
+async function screens() {
+  console.log("\nscreens: one address, several screens, named by the prototype");
+  await withPage(8804, async (t) => {
+    const { page, ctx, $, base } = t;
+    const title = () => page.locator("#kiosk h1").textContent();
+    await page.goto(base + "/demo-kiosk.html", { waitUntil: "networkidle" });
+    await page.keyboard.press("c"); await page.waitForTimeout(400);
+    check("tab reads This screen", (await $('[data-scope="page"]').textContent()) === "This screen");
+    check("footer names the screen", (await $("#dPage").textContent()) === "/demo-kiosk.html › Destination");
+
+    await post(t, "Destination: heading too long", "#kiosk h1", { name: "Michael" });
+    check("comment 1 pinned on Destination", (await $(".pin").count()) === 1 && (await $(".item").count()) === 1);
+
+    await page.locator('[data-dest="Lyness"]').click(); await page.waitForTimeout(500);
+    check("screen changed with the same address", (await title()) === "One way or return?" && new URL(page.url()).pathname === "/demo-kiosk.html");
+    check("the pin did not follow to the new screen", (await $(".pin").count()) === 0);
+    check("the list is this screen's only", (await $(".item").count()) === 0 && (await $("#dPage").textContent()).endsWith("› Trip type"));
+    check("pill counts this screen only", (await $("#nOpen").textContent()) === "0");
+
+    await post(t, "Trip type: say Round trip", "#kiosk h1");
+    check("numbers run across the page's screens", (await $(".item .n").first().textContent()) === "2");
+
+    await $('[data-scope="site"]').click(); await page.waitForTimeout(700);
+    const heads = await $(".grp").evaluateAll((g) => g.map((x) => x.querySelector(".gp").textContent + " " + (x.querySelector(".gs") ? x.querySelector(".gs").textContent : "")));
+    check("All pages groups by screen, this one first", heads[0] === "/demo-kiosk.html › Trip type" && heads[1] === "/demo-kiosk.html › Destination", heads.join(" | "));
+    check("the other screen's row offers Go to screen", /Go to screen/.test(await $(".item.remote .go").textContent()));
+    await page.screenshot({ path: resolve(shots, "screens-all.png") });
+
+    const firstId = await $(".item.remote").first().getAttribute("data-id");
+    await $(".item.remote").first().click(); await page.waitForTimeout(900);
+    check("clicking asks the prototype to switch screens", (await title()) === "Where are you going?");
+    check("and opens that comment on its pin", (await $(".item.active").getAttribute("data-id")) === firstId && (await $(".pin.active").getAttribute("data-id")) === firstId);
+    await page.screenshot({ path: resolve(shots, "screens-arrived.png") });
+
+    // a shared link to a comment on a later screen
+    const all = await (await page.request.get(base + "/api/tack/comments?scope=site")).json();
+    const second = all.find((c) => c.screen === "Trip type");
+    check("the function stored the screen and the element's fingerprint", !!second && second.anchor.tag === "h1" && second.anchor.txt === "One way or return?");
+    const p2 = await ctx.newPage(); const $2 = (s) => p2.locator("#tack-widget").locator(s);
+    await p2.goto(`${base}/demo-kiosk.html#tack=${second.id}`, { waitUntil: "networkidle" }); await p2.waitForTimeout(1500);
+    check("a shared link takes the prototype to the right screen", (await p2.locator("#kiosk h1").textContent()) === "One way or return?" && (await $2(".item.active").getAttribute("data-id")) === second.id);
+    await p2.close();
+
+    // a prototype that will not jump: say where it is, then open it when the reviewer gets there
+    const p3 = await ctx.newPage(); const $3 = (s) => p3.locator("#tack-widget").locator(s);
+    await p3.goto(`${base}/demo-kiosk.html?guard=1#tack=${second.id}`, { waitUntil: "networkidle" }); await p3.waitForTimeout(1200);
+    check("guarded prototype stays put", (await p3.locator("#kiosk h1").textContent()) === "Where are you going?");
+    check("Tack says which screen the comment is on", /Comment 2 is on the “Trip type” screen/.test(await $3("#toast").textContent()), await $3("#toast").textContent());
+    await p3.locator('[data-dest="Flotta"]').click(); await p3.waitForTimeout(900);
+    check("and opens it once the reviewer reaches that screen", (await $3(".item.active").getAttribute("data-id")) === second.id);
+    await p3.close();
+
+    // comments made before the prototype named its screens
+    await page.request.post(base + "/api/tack/comments", { data: { page: "/demo-kiosk.html", anchor: { sel: "#kiosk>section>header>h1", ox: 0.5, oy: 0.5, px: 0, py: 0 }, author: "Earlier", text: "Made before screens were named" } });
+    await $('[data-scope="page"]').click(); await page.waitForTimeout(200);
+    await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(600);
+    check("an unfiled comment shows on this screen, labelled", (await $(".item").filter({ hasText: "screen not recorded" }).count()) === 1);
+    await page.locator('[data-dest="Lyness"]').click(); await page.waitForTimeout(500);
+    check("and on the next screen too", (await $(".item").filter({ hasText: "screen not recorded" }).count()) === 1);
+
+    // a site whose function is too old to store the screen
+    await page.route("**/api/tack/comments", async (r) => {
+      if (r.request().method() !== "POST") return r.continue();
+      const res = await r.fetch(); const j = await res.json(); delete j.screen;
+      return r.fulfill({ response: res, json: j });
+    });
+    await post(t, "Posted through an old function", "#kiosk p");
+    check("older function: the drawer says comments can't be kept per screen", /older Tack function/.test(await $("#dNotice").textContent()));
+  });
+
+  console.log("\nscreens: the same prototype without a name (fingerprint only)");
+  await withPage(8805, async (t) => {
+    const { page, $, base } = t;
+    await page.goto(base + "/demo-kiosk.html?nostate=1", { waitUntil: "networkidle" });
+    await page.keyboard.press("c"); await page.waitForTimeout(400);
+    check("tab still reads This page", (await $('[data-scope="page"]').textContent()) === "This page");
+    await post(t, "Heading on the first screen", "#kiosk h1", { name: "Michael" });
+    check("pinned", (await $(".pin").count()) === 1);
+    await page.locator('[data-dest="Lyness"]').click(); await page.waitForTimeout(500);
+    check("a different heading in the same place: pin hides", (await $(".pin").count()) === 0);
+    check("the row stays, marked not on screen", (await $(".item").count()) === 1 && /not on screen/.test(await $(".item").textContent()));
+    await page.locator("[data-back]").click(); await page.waitForTimeout(500);
+    check("back on the first screen the pin returns", (await $(".pin").count()) === 1);
+
+    // text that changes legitimately must keep its pin
+    await page.locator('[data-dest="Lyness"]').click(); await page.locator('[data-trip="Return"]').click(); await page.waitForTimeout(400);
+    await post(t, "Total needs a currency note", ".total");
+    const before = await page.locator(".total").textContent();
+    await page.locator("[data-bike]").click(); await page.waitForTimeout(500);
+    check("a total that changes keeps its pin", before !== (await page.locator(".total").textContent()) && (await $(".pin").count()) === 1, before + " → " + (await page.locator(".total").textContent()));
+  });
+}
+
+const suites = { core, site, screens, resilience };
 const pick = process.argv[2];
 for (const [name, fn] of Object.entries(suites)) if (!pick || pick === name) await fn();
 console.log(failures ? `\n${failures} check(s) failed` : "\nall browser checks passed");

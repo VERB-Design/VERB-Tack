@@ -221,3 +221,27 @@ test("scope=site lists every page and stores a safe path and title", async () =>
   const res2 = await call("GET", "/.netlify/functions/tack/comments?scope=site");
   assert.equal((await json(res2)).length, 4);
 });
+
+test("stores the screen and an element fingerprint, and tolerates their absence", async () => {
+  __reset();
+  const marked = { ...anchor, tag: "H1", txt: "  Where are you going? ".padEnd(120, "x") };
+  let res = await call("POST", "/api/tack/comments", { body: { page: "/kiosk", screen: "  1 ·  Destination ", anchor: marked, author: "A", text: "one" }, token: "t" });
+  const c = await json(res);
+  assert.equal(c.screen, "1 · Destination");
+  assert.equal(c.anchor.tag, "h1");
+  assert.equal(c.anchor.txt.length, 80);
+  assert.equal(c.anchor.sel, anchor.sel);
+
+  res = await call("POST", "/api/tack/comments", { body: { page: "/kiosk", anchor, author: "A", text: "two" }, token: "t" });
+  const d = await json(res);
+  assert.equal(d.screen, "");
+  assert.equal("tag" in d.anchor, false);
+  assert.equal("txt" in d.anchor, false);
+  assert.equal(d.n, 2);                        // numbering is per page, across screens
+
+  res = await call("POST", "/api/tack/comments", { body: { page: "/kiosk", screen: "x".repeat(200), anchor, author: "A", text: "three" }, token: "t" });
+  assert.equal((await json(res)).screen.length, 80);
+
+  const list = await json(await call("GET", "/api/tack/comments?page=/kiosk"));
+  assert.deepEqual(list.map((x) => x.screen), ["1 · Destination", "", "x".repeat(80)]);
+});
