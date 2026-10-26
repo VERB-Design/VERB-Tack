@@ -11,10 +11,14 @@
      PATCH  /comments/:id                 reply · resolve/reopen · edit text
      DELETE /comments/:id?page=/path      owner token or admin key
      GET    /export                       admin key → every comment on the site
-     GET    /health                       { ok: true }
+     GET    /health                       { ok: true, version }
+
+   Any request carrying the admin key in X-Tack-Admin is answered with the
+   header X-Tack-Role: admin, which is how the embed knows to show its
+   admin-only controls (copy as prompt, delete anything).
 
    Environment:
-     TACK_ADMIN_KEY   required for DELETE (non-owner) and /export
+     TACK_ADMIN_KEY   required for DELETE (non-owner), /export and admin mode in the drawer
      TACK_ORIGINS     optional, comma-separated extra origins allowed to
                        call this API (only needed when the embed runs on a
                        different site than the function)
@@ -22,7 +26,7 @@
 
 import { getStore } from "@netlify/blobs";
 
-export const VERSION = "1.2.1";
+export const VERSION = "1.3.0";
 
 export const config = { path: "/api/tack/*" };
 
@@ -54,6 +58,7 @@ export default async function handler(req, context) {
     else if (resource === "export" && req.method === "GET") res = admin ? await exportAll() : json({ error: "Admin key required" }, 403);
     else if (resource === "health") res = json({ ok: true, version: VERSION });
     else res = json({ error: "Not found" }, 404);
+    if (admin) res.headers.set("X-Tack-Role", "admin");
     return cors(res, allowed);
   } catch (err) {
     console.error("[tack]", err);
@@ -285,6 +290,7 @@ function cors(res, origin) {
   h.set("Access-Control-Allow-Origin", origin);
   h.set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
   h.set("Access-Control-Allow-Headers", "Content-Type, X-Tack-Token, X-Tack-Admin");
+  h.set("Access-Control-Expose-Headers", "X-Tack-Role");
   h.set("Vary", "Origin");
   return new Response(res.body, { status: res.status, headers: h });
 }

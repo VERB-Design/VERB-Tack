@@ -4,3 +4,6 @@ node_modules/
 .env
 package-lock.json
 test/browser/shots/
+
+# screenshots from browser runs never belong in the repo
+/*.png

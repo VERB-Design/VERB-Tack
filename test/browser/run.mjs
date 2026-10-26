@@ -69,7 +69,7 @@ async function core() {
     const { page, $, base } = t;
     await page.goto(base + "/demo.html", { waitUntil: "networkidle" });
     check("starts closed with the pill showing", (await $("#pill").isVisible()) && !(await drawerOpen($)));
-    check("pill reads Tack | C", /Tack\s*C\s*0/.test((await $("#pill").textContent()).replace(/\s+/g, " ")));
+    check("pill shows the comment icon, C and the count", (await $("#pill .ico").count()) === 1 && /^C\s*0$/.test((await $("#pill").textContent()).replace(/\s+/g, " ").trim()));
 
     const navBefore = (await page.locator("nav").boundingBox()).width;
     await page.keyboard.press("c"); await page.waitForTimeout(400);

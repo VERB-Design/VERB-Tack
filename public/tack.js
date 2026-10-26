@@ -1,6 +1,6 @@
 /* ============================================================
    Tack — Figma-style comments on live prototypes · Verb Interactive
-   v1.0.0
+   v1.3.0
 
    Add to any page on a Netlify site that has the Tack function:
      <script src="/tack.js" defer></script>
@@ -28,6 +28,12 @@
    Comments are stored server-side through the Tack function; nothing
    here is a secret. Reviewers pick a display name once. A random token
    in localStorage lets them delete their own comments and nothing else.
+
+   Admin mode: open the site once with #tack-admin=<TACK_ADMIN_KEY>. The key
+   is kept in this browser and sent with every request; the function answers
+   with X-Tack-Role: admin, and the drawer then shows "Copy as prompt" on each
+   comment, "Copy prompts" for the whole list, and Delete on everything.
+   Click the Admin tag in the drawer header to lock again.
 ============================================================ */
 (function () {
   "use strict";
@@ -40,10 +46,11 @@
   var PAGE = normalizePage(ds.page || location.pathname);
   var Z = 2147483000;
   var POLL_MS = 20000;
-  var LS = { name: "tack.name", token: "tack.token", drawer: "tack.drawer", filter: "tack.filter" };
+  var LS = { name: "tack.name", token: "tack.token", drawer: "tack.drawer", filter: "tack.filter", admin: "tack.admin" };
 
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } }
+  function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* private mode */ } }
   function rand() {
     var a = new Uint8Array(16);
     (window.crypto || window.msCrypto).getRandomValues(a);
@@ -52,6 +59,22 @@
 
   var token = lsGet(LS.token);
   if (!token) { token = rand(); lsSet(LS.token, token); }
+
+  /* ---------- admin key ---------- */
+  /* #tack-admin=<key> in the address unlocks admin mode for this browser.
+     The key is taken out of the address at once and kept in localStorage. */
+  var adminKey = lsGet(LS.admin) || "";
+  var adminJustGiven = false;
+  (function () {
+    var m = /[#&]tack-admin=([^&]+)/.exec(location.hash || "");
+    if (!m) return;
+    try { adminKey = decodeURIComponent(m[1]); } catch (e) { adminKey = m[1]; }
+    adminJustGiven = true;
+    var rest = (location.hash || "").replace(/[#&]tack-admin=[^&]+/, "").replace(/^&/, "#");
+    if (history.replaceState) {
+      try { history.replaceState(history.state, "", location.pathname + location.search + (rest.length > 1 ? rest : "")); } catch (e) { /* leave the hash */ }
+    }
+  })();
 
   var state = {
     comments: [],
@@ -64,7 +87,8 @@
     error: null,
     scope: "page",                              // page | site
     site: null,                                 // every comment on the site, once loaded
-    siteError: null
+    siteError: null,
+    admin: false                                // the function accepted our admin key
   };
   var SS_FOCUS = "tack.focus";
 
@@ -111,6 +135,7 @@
     opts = opts || {};
     attempt = attempt || 1;
     var headers = { "X-Tack-Token": token };
+    if (adminKey) headers["X-Tack-Admin"] = adminKey;
     if (opts.body) headers["Content-Type"] = "application/json";
     var ctrl = window.AbortController ? new AbortController() : null;
     var timer = ctrl && setTimeout(function () { ctrl.abort(); }, API_TIMEOUT);
@@ -122,6 +147,7 @@
       signal: ctrl ? ctrl.signal : undefined
     }).then(function (r) {
       clearTimeout(timer);
+      noteRole(r);
       if (r.status === 204) return null;
       return r.text().then(function (t) {
         var d = null;
@@ -139,6 +165,40 @@
     });
   }
   function pageQ() { return "?page=" + encodeURIComponent(PAGE); }
+
+  /* The function says X-Tack-Role: admin when it accepted the key. */
+  function noteRole(r) {
+    var isAdmin = !!adminKey && r.headers.get("X-Tack-Role") === "admin";
+    if (isAdmin !== state.admin) { state.admin = isAdmin; if (typeof renderAll === "function" && listBox) renderAll(); }
+  }
+  /* Check the key against /health, which also tells us the function's version,
+     so a site on an older function gets a clear message instead of a silent no. */
+  function verifyAdmin() {
+    if (!adminKey) return Promise.resolve();
+    return api("/health").then(function (d) {
+      var v = (d && d.version) || "0";
+      if (state.admin) {
+        lsSet(LS.admin, adminKey);
+        if (adminJustGiven) toast("Admin unlocked");
+      } else if (olderThan(v, "1.3.0")) {
+        if (adminJustGiven) lsSet(LS.admin, adminKey);     // keep it; it will work after the update
+        toast("This site runs an older Tack function. Update verb-tack to unlock admin.");
+      } else {
+        adminKey = ""; lsDel(LS.admin);
+        toast("That admin key was not accepted");
+      }
+      adminJustGiven = false;
+    }).catch(function () { /* the load error is reported elsewhere */ });
+  }
+  function olderThan(a, b) {
+    var x = String(a).split(".").map(Number), y = b.split(".").map(Number);
+    for (var i = 0; i < 3; i++) { if ((x[i] || 0) < y[i]) return true; if ((x[i] || 0) > y[i]) return false; }
+    return false;
+  }
+  function lockAdmin() {
+    adminKey = ""; lsDel(LS.admin); state.admin = false;
+    renderAll(); toast("Admin locked");
+  }
 
   function load(silent) {
     return api("/comments" + pageQ()).then(function (list) {
@@ -202,6 +262,8 @@
     /* pill */
     ".pill{position:fixed;bottom:20px;right:20px;z-index:20;display:flex;align-items:center;gap:10px;background:#000;color:#fff;border:1px solid var(--line2);padding:10px 16px 10px 14px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-size:12px;box-shadow:0 12px 32px rgba(0,0,0,.35);transition:border-color .15s,transform .15s}",
     ".pill:hover{border-color:#fff;transform:translateY(-1px)}",
+    ".pill .ico{display:block;flex:none;color:#fff}",
+    ".pill:hover .ico circle{fill:#fff}",
     ".pill .sep{width:1px;height:14px;background:var(--line2)}",
     ".pill kbd{font:inherit;font-size:11px;color:var(--muted);letter-spacing:0}",
     ".pill .cnt{font-size:11px;background:#fff;color:#000;padding:1px 7px;min-width:20px;text-align:center;letter-spacing:0;margin-left:2px}",
@@ -282,6 +344,8 @@
     ".who time{font-weight:400;font-size:11px;color:var(--muted)}",
     ".tag{font-weight:600;font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border:1px solid var(--line2);padding:1px 6px;white-space:nowrap}",
     ".tag.you{color:#fff;border-color:var(--teal);background:rgba(0,131,168,.25)}",
+    ".tag.admin{color:#fff;border-color:var(--pink);background:rgba(236,0,140,.18);cursor:pointer}",
+    ".tag.admin:hover{background:var(--pink)}",
     ".txt{font-size:13.5px;overflow-wrap:anywhere;white-space:pre-wrap;margin-top:3px;color:#fff}",
     ".item.resolved .txt{color:var(--muted)}",
     ".item.resolved:not(.active) .txt{text-decoration:line-through;text-decoration-color:rgba(255,255,255,.35)}",
@@ -302,6 +366,10 @@
     ".acts .ln,.acts .dl{border-left:1px solid var(--line)}",
     ".acts .ln:hover{color:var(--teal2)}",
     ".acts .dl:hover{color:var(--pink)}",
+    ".acts .pr{grid-column:1/-1;border-top:1px solid var(--line);color:var(--teal2);margin-top:2px}",
+    ".acts .pr:hover{color:#fff}",
+    ".acts.admin{grid-auto-flow:row;grid-template-columns:repeat(3,1fr)}",
+    ".d-foot .btn.sm{white-space:nowrap}",
     ".empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13px;line-height:1.6}",
     ".empty .dpin{width:32px;height:32px;border-radius:50%;background:var(--teal);color:#fff;border:2px solid #fff;font-weight:600;line-height:1;padding-bottom:1px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}",
     ".empty b{color:#fff}",
@@ -323,6 +391,7 @@
     '  <aside class="drawer" id="drawer" aria-label="Tack comments">' +
     '    <header class="d-head">' +
     '      <span class="logo">Tack</span>' +
+    '      <button class="tag admin" id="adminTag" hidden title="Admin mode is on for this browser · click to lock">Admin</button>' +
     '      <span class="count" id="dCount"></span>' +
     '      <button class="x" id="dClose" aria-label="Hide comments" title="Hide comments (C)">&times;</button>' +
     '    </header>' +
@@ -342,10 +411,16 @@
     '    <div class="d-list" id="dList"></div>' +
     '    <footer class="d-foot">' +
     '      <span class="page mono" id="dPage"></span>' +
+    '      <button class="btn sm" id="promptsBtn" hidden title="Copy the listed comments as one prompt for an AI coding assistant">Copy prompts</button>' +
     '      <button class="btn sm" id="copyBtn">Copy summary</button>' +
     '    </footer>' +
     '  </aside>' +
-    '  <button class="pill" id="pill" aria-expanded="false" title="Show comments (C)">Tack<span class="sep"></span><kbd>C</kbd><span class="cnt" id="pillCnt">0</span></button>' +
+    '  <button class="pill" id="pill" aria-expanded="false" aria-label="Show comments" title="Show comments (C)">' +
+    '    <svg class="ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">' +
+    '      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-5 4.5V16h-.5A2.5 2.5 0 0 1 4 13.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>' +
+    '      <circle cx="12" cy="9.5" r="2" fill="#0083A8"/>' +
+    '    </svg>' +
+    '    <span class="sep"></span><kbd>C</kbd><span class="cnt" id="pillCnt">0</span></button>' +
     '  <div class="toast" id="toast" role="status"></div>' +
     '</div>';
 
@@ -712,6 +787,8 @@
     $("#pillCnt").textContent = pageOpen;            // the pill always speaks for what is on screen
     $("#pillCnt").classList.toggle("hot", pageOpen > 0);
     $("#dCount").textContent = shown.length ? nOpen + " ongoing · " + shown.length + " total" : "";
+    $("#adminTag").hidden = !state.admin;
+    $("#promptsBtn").hidden = !state.admin;
     $("#nSite").hidden = !state.site;
     $("#nSite").textContent = state.site ? mergedSite().filter(isOpen).length : "";
     Array.prototype.forEach.call(root.querySelectorAll(".seg.filter button"), function (b) {
@@ -849,10 +926,11 @@
           (getName() ? "" : '<input class="rName" placeholder="Your name" aria-label="Your name" maxlength="60">') +
           '<textarea class="rText" placeholder="Reply…" aria-label="Reply" maxlength="2000"></textarea>' +
           '<div class="row-end"><button class="btn sm primary rSend">Reply</button></div></div>';
-        html += '<div class="acts">' +
+        html += '<div class="acts' + (state.admin ? " admin" : "") + '">' +
           '<button class="rs">' + (c.resolved ? "Reopen" : "Resolve") + '</button>' +
           '<button class="ln">Copy link</button>' +
           (c.canDelete ? '<button class="dl">Delete</button>' : "") +
+          (state.admin ? '<button class="pr" title="Copy this comment as a prompt for an AI coding assistant">Copy as prompt</button>' : "") +
           '</div>';
       }
       html += '</div>';
@@ -874,6 +952,8 @@
         el.querySelector(".ln").addEventListener("click", function () { copyText(linkTo(c), "Link to comment " + c.n + " copied"); });
         var dl = el.querySelector(".dl");
         if (dl) dl.addEventListener("click", function () { removeComment(c); });
+        var pr = el.querySelector(".pr");
+        if (pr) pr.addEventListener("click", function () { copyText(promptFor(c), "Prompt for comment " + c.n + " copied"); });
         var send = el.querySelector(".rSend");
         send.addEventListener("click", function () { sendReply(c, el); });
         el.querySelector(".rText").addEventListener("keydown", function (ev) {
@@ -943,6 +1023,79 @@
     });
     return out;
   }
+  /* ---------- prompts (admin) ---------- */
+  /* A comment as an instruction an AI coding assistant can act on: where it
+     is, what it points at, what was said, and a link back. */
+  function pageLabel(c) {
+    var t = c.page === PAGE ? document.title : (c.title || "");
+    return c.page + (t ? "  (" + t + ")" : "");
+  }
+  function elementLines(a, pad) {
+    var out = [];
+    if (a && a.sel && a.sel !== "body") {
+      out.push(pad + "Element: <" + (a.tag || "?") + ">" + (a.txt ? ' "' + a.txt + '"' : " (no visible text)"));
+      out.push(pad + "Selector: " + a.sel);
+    } else if (a) {
+      out.push(pad + "Position: " + Math.round(a.px) + "px from the left, " + Math.round(a.py) + "px down the page, in a " + Math.round(a.vw) + "px wide window (no element recorded)");
+    }
+    return out;
+  }
+  function commentLines(c, pad) {
+    var out = [pad + "Comment " + c.n + " by " + c.author + ": " + c.text.replace(/\s*\n\s*/g, " ")];
+    c.replies.forEach(function (r) { out.push(pad + "Reply from " + r.author + ": " + r.text.replace(/\s*\n\s*/g, " ")); });
+    if (c.resolved) out.push(pad + "Status: resolved" + (c.resolvedBy ? " by " + c.resolvedBy : ""));
+    out = out.concat(elementLines(c.anchor, pad));
+    out.push(pad + "Link: " + linkTo(c));
+    return out;
+  }
+  function promptFor(c) {
+    var lines = ["Fix this review comment on the prototype at " + location.origin + ".", ""];
+    lines.push("Page: " + pageLabel(c));
+    if (scr(c)) lines.push("Screen: " + scr(c));
+    lines = lines.concat(commentLines(c, ""));
+    lines.push("", "Make the change in the prototype source, keep the existing style and conventions, and summarise what you changed.");
+    return lines.join("\n");
+  }
+  function promptForAll(list, siteWide) {
+    if (!list.length) return "";
+    var lines = ["Fix these review comments on the prototype at " + location.origin + "."];
+    if (!siteWide) {
+      lines.push("Page: " + pageLabel(list[0]));
+      if (SCREEN) lines.push("Screen: " + SCREEN);
+    }
+    lines.push("");
+    var lastKey = null, i = 0;
+    list.forEach(function (c) {
+      var key = c.page + "\n" + scr(c);
+      if (siteWide && key !== lastKey) {
+        lines.push("Page: " + pageLabel(c) + (scr(c) ? "  ·  Screen: " + scr(c) : ""), "");
+        lastKey = key;
+      }
+      i++;
+      var body = commentLines(c, "   ");
+      body[0] = i + ". " + body[0].slice(3);
+      lines = lines.concat(body, [""]);
+    });
+    lines.push("Work through them in order. Make each change in the prototype source, keep the existing style and conventions, and summarise what you changed for each number.");
+    return lines.join("\n");
+  }
+  $("#promptsBtn").addEventListener("click", function () {
+    var siteWide = state.scope === "site" && !!state.site;
+    var list = siteWide ? mergedSite().filter(matches) : visible();
+    if (siteWide) {
+      list = list.slice().sort(function (a, b) {
+        var ka = a.page + "\n" + scr(a), kb = b.page + "\n" + scr(b);
+        return ka < kb ? -1 : ka > kb ? 1 : a.n - b.n;
+      });
+    }
+    if (!list.length) { toast("Nothing in the list to copy"); return; }
+    copyText(promptForAll(list, siteWide), pluralize(list.length, "prompt") + " copied");
+  });
+
+  $("#adminTag").addEventListener("click", function () {
+    if (window.confirm("Lock admin mode in this browser? Open the site with #tack-admin=<key> to unlock it again.")) lockAdmin();
+  });
+
   $("#copyBtn").addEventListener("click", function () {
     var lines;
     if (state.scope === "site" && state.site) {
@@ -1052,6 +1205,7 @@
   applyPush();
   renderAll();
   var focusId = pendingFocus();
+  verifyAdmin();
   load(!state.open).then(function () {
     if (focusId && !focusComment(focusId)) toast("That comment is no longer on this page");
     else if (state.open) loadSite();

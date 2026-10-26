@@ -183,6 +183,8 @@ If the app builds from a subfolder (`base = "site"` in netlify.toml), the functi
 
 Anyone can comment, reply, resolve, and reopen. Only the author of a comment, identified by a random token in their browser, can delete it. The admin key overrides that.
 
+**Admin mode in the drawer (function 1.3.0).** Open the site once with `#tack-admin=<TACK_ADMIN_KEY>` in the address. The key is taken out of the address and kept in that browser, and sent with every request; the function answers with `X-Tack-Role: admin`. The drawer then shows an Admin tag in its header, Copy as prompt on each comment and Copy prompts for the whole list (the comments as one prompt for an AI coding assistant), and Delete on everything. Click the Admin tag to lock again. On a site whose function is older than 1.3.0 the drawer says so and keeps the key for after the update.
+
 ```bash
 # export every comment on the site as JSON
 curl -H "x-tack-admin: $TACK_ADMIN_KEY" https://your-site.netlify.app/api/tack/export
